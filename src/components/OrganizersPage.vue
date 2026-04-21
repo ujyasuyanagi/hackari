@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useRouter } from 'vue-router'
-import { Users, Megaphone, Network, Lightbulb, ArrowRight, CheckCircle2, Briefcase } from 'lucide-vue-next'
+import { PhUsers as Users, PhMegaphone as Megaphone, PhNetwork as Network, PhLightbulb as Lightbulb, PhArrowRight as ArrowRight, PhCheckCircle as CheckCircle, PhBriefcase as Briefcase } from '@phosphor-icons/vue'
+import { organizerApi } from '@/services/api'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -58,8 +59,16 @@ const steps = [
   { num: '03', title: 'создайте хакатон', desc: 'настройте событие через визард' },
 ]
 
-const navigateToTerms = () => {
-  router.push('/organizers/rules')
+const navigateToTerms = async () => {
+  // Check if user already has organizer profile
+  const response = await organizerApi.getMyOrganizer()
+  if (response.data) {
+    // User has organizer profile, go directly to dashboard
+    router.push('/organizers/dashboard')
+  } else {
+    // User doesn't have organizer profile, show terms
+    router.push('/organizers/rules')
+  }
 }
 
 const scrollToBenefits = () => {
@@ -288,7 +297,7 @@ onMounted(() => {
               <div class="benefit-number mono">{{ benefit.number }}</div>
 
               <div class="benefit-icon">
-                <component :is="benefit.icon" :size="32" stroke-width="1.5" />
+                <component :is="benefit.icon" :size="32" />
               </div>
 
               <h3 class="benefit-title">{{ benefit.title }}</h3>
@@ -331,7 +340,7 @@ onMounted(() => {
             </div>
             <div class="step-line" />
             <div v-if="index === steps.length - 1" class="step-connector">
-              <CheckCircle2 :size="32" class="step-check" />
+              <CheckCircle :size="32" class="step-check" />
             </div>
           </div>
         </div>

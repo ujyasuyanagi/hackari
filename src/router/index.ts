@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LandingView from '@/views/LandingView.vue'
 import AuthView from '@/views/AuthView.vue'
 import HackathonsView from '@/views/HackathonsView.vue'
+import HackathonDetailView from '@/views/HackathonDetailView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import RatingsView from '@/views/RatingsView.vue'
 import OrganizersView from '@/views/OrganizersView.vue'
@@ -9,6 +10,8 @@ import OrganizerDashboardView from '@/views/OrganizerDashboardView.vue'
 import OrganizerProfileView from '@/views/OrganizerProfileView.vue'
 import HackathonCreateView from '@/views/HackathonCreateView.vue'
 import OrganizerTermsAcceptance from '@/components/OrganizerTermsAcceptance.vue'
+import ResetPasswordView from '@/views/ResetPasswordView.vue'
+import EmailVerificationView from '@/views/EmailVerificationView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -64,12 +67,28 @@ const router = createRouter({
       component: HackathonCreateView,
     },
     {
+      path: '/hackathons/:id',
+      name: 'hackathon-detail',
+      component: HackathonDetailView,
+      props: true,
+    },
+    {
       path: '/login',
       redirect: '/auth',
     },
     {
       path: '/register',
       redirect: '/auth',
+    },
+    {
+      path: '/auth/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+    },
+    {
+      path: '/auth/verify-email',
+      name: 'verify-email',
+      component: EmailVerificationView,
     },
   ],
   scrollBehavior() {

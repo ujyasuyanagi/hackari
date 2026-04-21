@@ -3,7 +3,6 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import Lenis from 'lenis'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import AppHeader from '@/components/AppHeader.vue'
 import HackathonsPage from '@/components/HackathonsPage.vue'
 import FooterPage from '@/components/FooterPage.vue'
 
@@ -36,7 +35,6 @@ onUnmounted(() => {
 
 <template>
   <div class="hackathons-view">
-    <AppHeader />
     <main>
       <HackathonsPage />
     </main>
@@ -52,6 +50,6 @@ onUnmounted(() => {
 }
 
 main {
-  padding-top: 80px;
+  padding-top: 0;
 }
 </style>

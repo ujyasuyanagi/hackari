@@ -13,7 +13,6 @@ import {
   BarChart3,
   Crown,
 } from 'lucide-vue-next'
-import AppHeader from '@/components/AppHeader.vue'
 import FooterPage from '@/components/FooterPage.vue'
 import { teamApi } from '@/services/api'
 import type { TeamCompetencyRating } from '@/services/api'
@@ -202,8 +201,6 @@ const getRankColor = (rank: number) => {
 
 <template>
   <div class="ratings-view">
-    <AppHeader />
-
     <main class="main-content">
       <!-- Loading State -->
       <div v-if="isLoading" class="loading-state">
@@ -452,7 +449,7 @@ const getRankColor = (rank: number) => {
 
 .main-content {
   position: relative;
-  padding-top: 80px;
+  padding-top: 0;
 }
 
 // Loading State

@@ -4,7 +4,6 @@ import Lenis from 'lenis'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import AppHeader from '@/components/AppHeader.vue'
 import HeroPage from '@/components/HeroPage.vue'
 import HowItWorksPage from '@/components/HowItWorksPage.vue'
 import FeaturesPage from '@/components/FeaturesPage.vue'
@@ -45,7 +44,6 @@ onUnmounted(() => {
 
 <template>
   <div class="landing-view">
-    <AppHeader />
     <main class="pages-container">
       <HeroPage id="hero" class="page" />
       <HowItWorksPage id="how-it-works" class="page" />

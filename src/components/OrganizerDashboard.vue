@@ -237,8 +237,8 @@ onMounted(async () => {
 
 .dashboard-page {
   min-height: 100vh;
-  background: var(--bg-color);
-  padding: 6rem 1rem 2rem;
+  background: $color-bg;
+  padding: 7rem 2rem 2rem;
 }
 
 .container {
@@ -248,6 +248,8 @@ onMounted(async () => {
 
 .dashboard-header {
   margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid $color-surface;
 
   .header-content {
     display: flex;
@@ -260,17 +262,17 @@ onMounted(async () => {
   .header-title {
     h1 {
       font-size: clamp(1.75rem, 4vw, 2.5rem);
-      font-weight: 700;
+      font-weight: 600;
       margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-family: $font-display;
+      color: $color-text;
+      letter-spacing: -0.02em;
     }
 
     .header-subtitle {
-      color: var(--text-secondary);
+      color: $color-text-dim;
       font-size: 1rem;
+      font-family: $font-body;
     }
   }
 
@@ -281,7 +283,7 @@ onMounted(async () => {
 
     @media (max-width: 640px) {
       width: 100%;
-        justify-content: space-between;
+      justify-content: flex-start;
     }
   }
 }
@@ -290,43 +292,84 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   cursor: pointer;
-  border: none;
+  border: 1px solid $color-border;
   text-decoration: none;
+  text-transform: lowercase;
+  font-family: $font-body;
+  position: relative;
+  overflow: hidden;
 
   &.btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
+    background: transparent;
+    color: $color-accent;
+    border-color: $color-accent;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-accent;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      color: $color-bg;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 
   &.btn-outline {
     background: transparent;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    color: $color-text;
+    border-color: $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-surface;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-text;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 
   &.btn-icon {
     padding: 0.5rem;
-    background: rgba(var(--accent-primary-rgb), 0.1);
-    color: var(--accent-primary);
+    background: transparent;
+    border-color: $color-border;
+    color: $color-text-dim;
 
     &:hover {
-      background: rgba(var(--accent-primary-rgb), 0.2);
+      border-color: $color-accent;
+      color: $color-accent;
     }
   }
 }
@@ -343,29 +386,36 @@ onMounted(async () => {
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  transition: border-color 0.3s $transition-smooth;
+
+  &:hover {
+    border-color: $color-accent;
+  }
 
   .stat-icon {
     width: 48px;
     height: 48px;
-    border-radius: 0.75rem;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
 
     &.published {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
+      background: rgba($color-accent, 0.1);
+      color: $color-accent;
     }
 
     &.draft {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
+      background: rgba($color-secondary, 0.1);
+      color: $color-secondary;
     }
 
     &.participants {
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      background: rgba($color-text-dim, 0.1);
+      color: $color-text-dim;
     }
   }
 
@@ -377,28 +427,33 @@ onMounted(async () => {
   .stat-value {
     font-size: 1.75rem;
     font-weight: 700;
-    color: var(--text-color);
+    color: $color-text;
+    font-family: $font-display;
   }
 
   .stat-label {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
+    font-family: $font-body;
   }
 }
 
 .content-section {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 1.5rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 1.5rem;
 
   .section-header {
     margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid $color-border;
 
     h2 {
       font-size: 1.25rem;
       font-weight: 600;
-      color: var(--text-color);
+      color: $color-text;
+      font-family: $font-display;
     }
   }
 }
@@ -409,14 +464,14 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: 4rem;
-  color: var(--text-secondary);
+  color: $color-text-dim;
   gap: 1rem;
 
   .spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid var(--border-color);
-    border-top-color: var(--accent-primary);
+    border: 2px solid $color-border;
+    border-top-color: $color-accent;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -442,21 +497,23 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-tertiary);
+    color: $color-text-muted;
     margin-bottom: 1.5rem;
   }
 
   h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: $color-text;
     margin-bottom: 0.5rem;
+    font-family: $font-display;
   }
 
   p {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     margin-bottom: 1.5rem;
     max-width: 400px;
+    font-family: $font-body;
   }
 }
 
@@ -470,14 +527,14 @@ onMounted(async () => {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: rgba(var(--accent-primary-rgb), 0.05);
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
-  transition: all 0.3s ease;
+  background: rgba($color-accent, 0.02);
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  transition: all 0.3s $transition-smooth;
 
   &:hover {
-    border-color: var(--accent-primary);
-    transform: translateX(4px);
+    border-color: $color-accent;
+    background: rgba($color-accent, 0.04);
   }
 }
 
@@ -486,7 +543,7 @@ onMounted(async () => {
   width: 80px;
   height: 80px;
   flex-shrink: 0;
-  border-radius: 0.75rem;
+  border-radius: 8px;
   overflow: hidden;
 
   img {
@@ -501,10 +558,12 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
-    font-size: 2rem;
+    background: $color-bg;
+    border: 1px solid $color-border;
+    color: $color-text;
+    font-size: 1.5rem;
     font-weight: 700;
+    font-family: $font-display;
   }
 }
 
@@ -512,19 +571,20 @@ onMounted(async () => {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
+  font-family: $font-mono;
 
   &.published {
-    background: #22c55e;
-    color: white;
+    background: rgba($color-accent, 0.9);
+    color: $color-bg;
   }
 
   &.draft {
-    background: #f59e0b;
+    background: rgba($color-secondary, 0.9);
     color: white;
   }
 }
@@ -537,27 +597,29 @@ onMounted(async () => {
 .hackathon-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: $color-text;
   margin-bottom: 0.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: $font-display;
 }
 
 .hackathon-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  font-family: $font-body;
 
   .meta-item {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
 
     svg {
-      color: var(--accent-primary);
+      color: $color-accent;
     }
   }
 }

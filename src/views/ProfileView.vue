@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useProfile } from '@/composables/useProfile'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
-import AppHeader from '@/components/AppHeader.vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
@@ -208,8 +207,6 @@ const getAvailableSkillsOptions = () => {
 
 <template>
   <div class="profile-view">
-    <AppHeader />
-
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <Loader2 class="loading-icon" :size="32" />

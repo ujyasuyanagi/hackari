@@ -170,7 +170,7 @@ onMounted(() => {
 
 .rules-page {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: $color-bg;
   padding: 2rem 1rem;
   display: flex;
   align-items: center;
@@ -183,11 +183,10 @@ onMounted(() => {
 }
 
 .page-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 2rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 2.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .page-header {
@@ -196,17 +195,17 @@ onMounted(() => {
 
   .page-title {
     font-size: clamp(1.75rem, 4vw, 2.25rem);
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 0.75rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: $color-text;
+    font-family: $font-display;
+    letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-size: 1rem;
+    font-family: $font-body;
   }
 }
 
@@ -221,14 +220,14 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  background: rgba(var(--accent-primary-rgb), 0.05);
-  border-radius: 1rem;
-  border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  background: rgba($color-accent, 0.02);
+  border-radius: 8px;
+  border: 1px solid $color-border;
+  transition: all 0.3s $transition-smooth;
 
   &:hover {
-    border-color: var(--accent-primary);
-    transform: translateX(4px);
+    border-color: $color-accent;
+    background: rgba($color-accent, 0.04);
   }
 }
 
@@ -236,12 +235,13 @@ onMounted(() => {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  border-radius: 0.75rem;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: $color-accent;
   font-size: 1.25rem;
 }
 
@@ -253,14 +253,16 @@ onMounted(() => {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: var(--text-color);
+  color: $color-text;
+  font-family: $font-display;
 }
 
 .rule-description {
-  color: var(--text-secondary);
+  color: $color-text-dim;
   font-size: 0.95rem;
   margin-bottom: 0.75rem;
   line-height: 1.5;
+  font-family: $font-body;
 }
 
 .rule-list {
@@ -273,7 +275,8 @@ onMounted(() => {
     position: relative;
     padding-left: 1.25rem;
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
+    font-family: $font-body;
 
     &::before {
       content: '';
@@ -282,7 +285,7 @@ onMounted(() => {
       top: 0.5rem;
       width: 6px;
       height: 6px;
-      background: var(--accent-primary);
+      background: $color-accent;
       border-radius: 50%;
     }
   }
@@ -290,8 +293,9 @@ onMounted(() => {
 
 .acceptance-check {
   padding: 1.5rem;
-  background: rgba(var(--accent-primary-rgb), 0.05);
-  border-radius: 1rem;
+  background: rgba($color-accent, 0.02);
+  border-radius: 8px;
+  border: 1px solid $color-border;
   margin-bottom: 1.5rem;
 }
 
@@ -310,8 +314,8 @@ onMounted(() => {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  border: 2px solid var(--border-color);
-  border-radius: 0.5rem;
+  border: 2px solid $color-border;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,21 +323,22 @@ onMounted(() => {
   margin-top: 2px;
 
   .checkbox-input:checked + & {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
+    background: $color-accent;
+    border-color: $color-accent;
   }
 }
 
 .checkbox-check {
   width: 16px;
   height: 16px;
-  fill: white;
+  fill: $color-bg;
 }
 
 .checkbox-label {
   font-size: 0.95rem;
-  color: var(--text-color);
+  color: $color-text;
   line-height: 1.5;
+  font-family: $font-body;
 }
 
 .actions {
@@ -351,22 +356,44 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  border-radius: 0.75rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   cursor: pointer;
-  border: none;
+  border: 1px solid $color-border;
+  text-transform: lowercase;
+  font-family: $font-body;
+  position: relative;
+  overflow: hidden;
 
   &.btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
+    background: transparent;
+    color: $color-accent;
+    border-color: $color-accent;
     min-width: 160px;
     justify-content: center;
 
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-accent;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
+
     &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      color: $color-bg;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
 
     &:disabled {
@@ -377,12 +404,29 @@ onMounted(() => {
 
   &.btn-secondary {
     background: transparent;
-    color: var(--text-color);
-    border: 2px solid var(--border-color);
+    color: $color-text;
+    border-color: $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-surface;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-text;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 }

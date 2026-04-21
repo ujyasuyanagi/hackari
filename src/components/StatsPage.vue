@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { TrendingUp, Users, Trophy, Clock } from 'lucide-vue-next'
+import { PhTrendUp as TrendUp, PhUsers as Users, PhTrophy as Trophy, PhClock as Clock } from '@phosphor-icons/vue'
 
 const sectionRef = ref<HTMLElement | null>(null)
 const statsRef = ref<HTMLDivElement | null>(null)
@@ -12,7 +12,7 @@ const statsAnimated = ref(false)
 const hoveredSegment = ref<number | null>(null)
 
 const stats = [
-  { icon: TrendingUp, value: 150, suffix: '+', label: 'проведённых хакатонов', prefix: '' },
+  { icon: TrendUp, value: 150, suffix: '+', label: 'проведённых хакатонов', prefix: '' },
   { icon: Users, value: 12000, suffix: '', label: 'зарегистрированных участников', prefix: '' },
   { icon: Trophy, value: 4500, suffix: '+', label: 'сформированных команд', prefix: '' },
   { icon: Clock, value: 98, suffix: '%', label: 'успешных завершений', prefix: '' },

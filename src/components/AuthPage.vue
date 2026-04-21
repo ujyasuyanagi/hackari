@@ -213,6 +213,12 @@ onMounted(() => {
   font-weight: 300;
   color: $color-accent;
   animation: blink 1.2s step-end infinite;
+  display: inline-flex;
+  align-items: flex-end;
+  vertical-align: bottom;
+  line-height: 1;
+  height: 26px;
+  transform: translateY(2px);
 }
 
 @keyframes blink {

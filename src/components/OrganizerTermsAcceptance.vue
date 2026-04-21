@@ -153,29 +153,27 @@ import {
 } from 'lucide-vue-next'
 
 const router = useRouter()
-
+const showModal = ref(false)
 const pageCard = ref<HTMLElement | null>(null)
 const headerIcon = ref<HTMLElement | null>(null)
 const progressBar = ref<HTMLElement | null>(null)
 const termsContent = ref<HTMLElement | null>(null)
-const summarySection = ref<HTMLElement | null>(null)
 const fullTerms = ref<HTMLElement | null>(null)
 const actions = ref<HTMLElement | null>(null)
-
-const showModal = ref(false)
+const summarySection = ref<HTMLElement | null>(null)
 
 const sectionTitles = [
-  'Предмет соглашения и термины',
+  'Общие положения',
   'Права и обязанности организатора',
-  'Права и обязанности платформы',
-  'Ответственность сторон',
-  'Заключительные положения'
+  'Процесс проведения хакатона',
+  'Выплата призов',
+  'Ответственность сторон'
 ]
 
 interface Term {
   title: string
   description: string
-  details: string[]
+  details?: string[]
   accepted: boolean
 }
 
@@ -305,7 +303,7 @@ onMounted(() => {
 
 .terms-page {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: $color-bg;
   padding: 2rem 1rem;
   display: flex;
   align-items: flex-start;
@@ -319,11 +317,10 @@ onMounted(() => {
 }
 
 .page-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 2rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 2.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .page-header {
@@ -334,47 +331,45 @@ onMounted(() => {
     width: 80px;
     height: 80px;
     margin: 0 auto 1.5rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    border-radius: 1.5rem;
+    background: transparent;
+    border: 2px solid $color-accent;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    box-shadow: 0 10px 40px rgba(var(--accent-primary-rgb), 0.3);
+    color: $color-accent;
   }
 
   .page-title {
     font-size: clamp(1.75rem, 4vw, 2.25rem);
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 0.75rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: $color-text;
+    font-family: $font-display;
+    letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-size: 1rem;
     max-width: 480px;
     margin: 0 auto;
     line-height: 1.5;
+    font-family: $font-body;
   }
 }
 
 .progress-bar {
   position: relative;
-  height: 8px;
-  background: var(--border-color);
-  border-radius: 4px;
+  height: 4px;
+  background: $color-border;
   margin-bottom: 2rem;
   overflow: hidden;
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-    border-radius: 4px;
-    transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    background: $color-accent;
+    transition: width 0.5s $transition-smooth;
   }
 
   .progress-text {
@@ -382,8 +377,9 @@ onMounted(() => {
     right: 0;
     top: -24px;
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-weight: 500;
+    font-family: $font-mono;
   }
 }
 
@@ -398,10 +394,10 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   padding: 1.25rem;
-  background: var(--bg-color);
-  border: 2px solid var(--border-color);
-  border-radius: 1rem;
-  transition: all 0.3s ease;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  transition: all 0.3s $transition-smooth;
   position: relative;
   overflow: hidden;
 
@@ -411,26 +407,26 @@ onMounted(() => {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 4px;
+    width: 3px;
     background: transparent;
-    transition: background 0.3s ease;
+    transition: background 0.3s $transition-smooth;
   }
 
   &.is-accepted {
-    border-color: var(--accent-green);
-    background: rgba(var(--accent-green-rgb), 0.05);
+    border-color: $color-accent;
+    background: rgba($color-accent, 0.05);
 
     &::before {
-      background: var(--accent-green);
+      background: $color-accent;
     }
   }
 
   &.is-active {
-    border-color: var(--accent-primary);
+    border-color: $color-text-dim;
   }
 
   &.is-disabled:not(.is-accepted) {
-    opacity: 0.6;
+    opacity: 0.5;
   }
 }
 
@@ -438,36 +434,35 @@ onMounted(() => {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
 
   .num {
     font-family: $font-mono;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: $color-text-dim;
   }
 
   .is-accepted & {
-    background: var(--accent-green);
-    border-color: var(--accent-green);
+    background: $color-accent;
+    border-color: $color-accent;
 
     .num {
-      color: white;
+      color: $color-bg;
     }
   }
 
   .is-active & {
-    border-color: var(--accent-primary);
-    background: var(--accent-primary);
+    border-color: $color-text;
 
     .num {
-      color: white;
+      color: $color-text;
     }
   }
 }
@@ -481,14 +476,16 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: var(--text-color);
+  color: $color-text;
+  font-family: $font-display;
 }
 
 .term-description {
   font-size: 0.9rem;
-  color: var(--text-secondary);
+  color: $color-text-dim;
   margin-bottom: 0.5rem;
   line-height: 1.5;
+  font-family: $font-body;
 }
 
 .term-details {
@@ -499,10 +496,11 @@ onMounted(() => {
   .detail-item {
     font-size: 0.75rem;
     padding: 0.25rem 0.625rem;
-    background: var(--card-bg);
-    border-radius: 1rem;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
+    background: $color-surface;
+    border-radius: 4px;
+    color: $color-text-dim;
+    border: 1px solid $color-border;
+    font-family: $font-body;
   }
 }
 
@@ -512,30 +510,32 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  border: 2px solid var(--border-color);
-  border-radius: 0.75rem;
-  background: var(--card-bg);
-  color: var(--text-secondary);
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  background: transparent;
+  color: $color-text-dim;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   align-self: flex-start;
+  text-transform: lowercase;
+  font-family: $font-body;
 
   &:hover:not(:disabled) {
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
+    border-color: $color-accent;
+    color: $color-accent;
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 
   &.is-accepted {
-    background: var(--accent-green);
-    border-color: var(--accent-green);
-    color: white;
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $color-bg;
   }
 }
 
@@ -558,35 +558,37 @@ onMounted(() => {
 .summary-card {
   text-align: center;
   padding: 2rem;
-  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.1), rgba(var(--accent-secondary-rgb), 0.1));
-  border: 2px solid var(--accent-primary);
-  border-radius: 1.5rem;
+  background: rgba($color-accent, 0.05);
+  border: 1px solid $color-accent;
+  border-radius: 8px;
 
   .summary-icon {
     width: 64px;
     height: 64px;
     margin: 0 auto 1rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    border-radius: 50%;
+    background: $color-accent;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: $color-bg;
   }
 
   .summary-title {
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 0.5rem;
-    color: var(--text-color);
+    color: $color-text;
+    font-family: $font-display;
   }
 
   .summary-text {
     font-size: 0.95rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
     line-height: 1.6;
     max-width: 400px;
     margin: 0 auto;
+    font-family: $font-body;
   }
 }
 
@@ -594,23 +596,24 @@ onMounted(() => {
   text-align: center;
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background: var(--bg-color);
-  border-radius: 1rem;
-  border: 1px dashed var(--border-color);
+  background: $color-bg;
+  border-radius: 8px;
+  border: 1px dashed $color-border;
 }
 
 .terms-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--accent-primary);
+  color: $color-text;
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  font-family: $font-body;
 
   &:hover {
-    color: var(--accent-secondary);
+    color: $color-accent;
 
     .link-icon {
       transform: translate(2px, -2px);
@@ -619,13 +622,15 @@ onMounted(() => {
 
   .link-icon {
     transition: transform 0.2s ease;
+    color: $color-accent;
   }
 }
 
 .terms-note {
   margin-top: 0.75rem;
   font-size: 0.8rem;
-  color: var(--text-tertiary);
+  color: $color-text-muted;
+  font-family: $font-body;
 }
 
 .actions {
@@ -644,38 +649,76 @@ onMounted(() => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  border-radius: 0.75rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   cursor: pointer;
-  border: none;
+  border: 1px solid $color-border;
+  text-transform: lowercase;
+  font-family: $font-body;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
 
   &.btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
+    color: $color-accent;
+    border-color: $color-accent;
     min-width: 160px;
 
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-accent;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
+
     &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      color: $color-bg;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
 
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-      background: var(--border-color);
+      border-color: $color-border;
     }
   }
 
   &.btn-secondary {
-    background: transparent;
-    color: var(--text-color);
-    border: 2px solid var(--border-color);
+    color: $color-text;
+    border-color: $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-surface;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-text;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 }
@@ -684,7 +727,7 @@ onMounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba($color-bg, 0.8);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -694,13 +737,13 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: var(--card-bg);
-  border-radius: 1.5rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .modal-header {
@@ -708,12 +751,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid $color-border;
 
   h3 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: $color-text;
+    font-family: $font-display;
   }
 }
 
@@ -723,25 +767,16 @@ onMounted(() => {
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: var(--bg-color);
-  border: none;
-  border-radius: 0.5rem;
-  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  color: $color-text-dim;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: var(--accent-red);
-    color: white;
-
-    .is-accepted & {
-      background: var(--accent-green);
-      border-color: var(--accent-green);
-
-      .num {
-        color: white;
-      }
-    }
+    border-color: $color-secondary;
+    color: $color-secondary;
   }
 }
 
@@ -752,9 +787,9 @@ onMounted(() => {
 }
 
 .mock-document {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 2rem;
 
   .doc-header {
@@ -763,32 +798,34 @@ onMounted(() => {
     align-items: center;
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 1px solid $color-border;
 
     .doc-logo {
       width: 48px;
       height: 48px;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border-radius: 0.75rem;
+      background: $color-accent;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
+      color: $color-bg;
       font-size: 1.5rem;
       font-weight: 700;
       margin-bottom: 0.75rem;
+      font-family: $font-display;
     }
 
     h4 {
       font-size: 1.125rem;
       font-weight: 600;
-      color: var(--text-color);
+      color: $color-text;
       margin-bottom: 0.25rem;
+      font-family: $font-display;
     }
 
     .doc-version {
       font-size: 0.75rem;
-      color: var(--text-tertiary);
+      color: $color-text-muted;
       font-family: $font-mono;
     }
   }
@@ -799,8 +836,9 @@ onMounted(() => {
     h5 {
       font-size: 0.9rem;
       font-weight: 600;
-      color: var(--text-color);
+      color: $color-text;
       margin-bottom: 0.75rem;
+      font-family: $font-display;
     }
   }
 
@@ -812,7 +850,7 @@ onMounted(() => {
 
   .doc-line {
     height: 12px;
-    background: var(--border-color);
+    background: $color-border;
     border-radius: 6px;
     opacity: 0.5;
   }
@@ -820,16 +858,16 @@ onMounted(() => {
   .doc-footer {
     margin-top: 2rem;
     padding-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid $color-border;
     text-align: center;
 
     .mock-label {
       font-size: 0.75rem;
-      color: var(--text-tertiary);
+      color: $color-text-muted;
       font-family: $font-mono;
       padding: 0.375rem 0.75rem;
-      background: var(--card-bg);
-      border-radius: 1rem;
+      background: $color-surface;
+      border-radius: 4px;
     }
   }
 }
@@ -848,7 +886,6 @@ onMounted(() => {
 @media (max-width: 640px) {
   .page-card {
     padding: 1.5rem;
-    border-radius: 1.5rem;
   }
 
   .term-card {

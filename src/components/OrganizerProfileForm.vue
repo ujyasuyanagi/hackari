@@ -129,9 +129,11 @@ import { useRouter } from 'vue-router'
 import gsap from 'gsap'
 import { organizerApi } from '@/services/api'
 import { useAuth } from '@/composables/useAuth'
+import { useModal } from '@/composables/useModal'
 
 const router = useRouter()
 const { user, isAuthenticated } = useAuth()
+const { alert } = useModal()
 
 const pageCard = ref<HTMLElement | null>(null)
 const actions = ref<HTMLElement | null>(null)
@@ -215,6 +217,7 @@ const handleSubmit = async () => {
       social_links: socialLinks,
     }
 
+    console.log('Sending organizer data:', data)
     let response
     if (hasOrganizer.value) {
       response = await organizerApi.updateOrganizer({
@@ -227,15 +230,24 @@ const handleSubmit = async () => {
     } else {
       response = await organizerApi.createOrganizer(data)
     }
+    console.log('Response:', response)
 
     if (response.data) {
       hasOrganizer.value = true
       router.push('/organizers/dashboard')
     } else {
-      alert(response.error || 'Произошла ошибка')
+      await alert({
+        title: 'Ошибка',
+        message: response.error || 'Произошла ошибка',
+        type: 'error'
+      })
     }
-  } catch (error) {
-    alert('Произошла ошибка при сохранении')
+  } catch (error: any) {
+    await alert({
+      title: 'Ошибка',
+      message: error?.message || 'Произошла ошибка при сохранении',
+      type: 'error'
+    })
   } finally {
     isSubmitting.value = false
   }
@@ -284,7 +296,7 @@ onMounted(async () => {
 
 .profile-page {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: $color-bg;
   padding: 2rem 1rem;
   display: flex;
   align-items: center;
@@ -297,11 +309,10 @@ onMounted(async () => {
 }
 
 .page-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 2rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 2.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .page-header {
@@ -310,17 +321,17 @@ onMounted(async () => {
 
   .page-title {
     font-size: clamp(1.75rem, 4vw, 2.25rem);
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 0.75rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: $color-text;
+    font-family: $font-display;
+    letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-size: 1rem;
+    font-family: $font-body;
   }
 }
 
@@ -330,10 +341,11 @@ onMounted(async () => {
   .section-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: $color-text;
     margin-bottom: 1.25rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid $color-border;
+    font-family: $font-display;
   }
 }
 
@@ -358,7 +370,7 @@ onMounted(async () => {
 
   &.has-error {
     .field-input, .field-select, .field-textarea {
-      border-color: var(--accent-red);
+      border-color: $color-secondary;
     }
   }
 }
@@ -366,10 +378,11 @@ onMounted(async () => {
 .field-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: $color-text-dim;
+  font-family: $font-body;
 
   .required {
-    color: var(--accent-red);
+    color: $color-secondary;
   }
 }
 
@@ -377,21 +390,22 @@ onMounted(async () => {
 .field-select,
 .field-textarea {
   padding: 0.875rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
-  background: var(--bg-color);
-  color: var(--text-color);
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  background: $color-bg;
+  color: $color-text;
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  font-family: $font-body;
 
   &:focus {
     outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.1);
+    border-color: $color-accent;
+    box-shadow: 0 0 0 3px rgba($color-accent, 0.1);
   }
 
   &::placeholder {
-    color: var(--text-tertiary);
+    color: $color-text-muted;
   }
 }
 
@@ -412,7 +426,8 @@ onMounted(async () => {
 
 .error-text {
   font-size: 0.8rem;
-  color: var(--accent-red);
+  color: $color-secondary;
+  font-family: $font-body;
 }
 
 .form-actions {
@@ -421,7 +436,7 @@ onMounted(async () => {
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid $color-border;
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -434,21 +449,43 @@ onMounted(async () => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  border-radius: 0.75rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   cursor: pointer;
-  border: none;
+  border: 1px solid $color-border;
+  text-transform: lowercase;
+  font-family: $font-body;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
 
   &.btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
+    color: $color-accent;
+    border-color: $color-accent;
     min-width: 180px;
 
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-accent;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
+
     &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      color: $color-bg;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
 
     &:disabled {
@@ -458,13 +495,29 @@ onMounted(async () => {
   }
 
   &.btn-secondary {
-    background: transparent;
-    color: var(--text-color);
-    border: 2px solid var(--border-color);
+    color: $color-text;
+    border-color: $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-surface;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-text;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 }
@@ -472,8 +525,8 @@ onMounted(async () => {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid rgba($color-accent, 0.3);
+  border-top-color: $color-accent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

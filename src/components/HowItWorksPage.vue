@@ -2,10 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { gsap } from 'gsap'
 import {
-  Users,
-  Code,
-  Trophy,
-} from 'lucide-vue-next'
+  PhUsers as Users,
+  PhCode as Code,
+  PhTrophy as Trophy,
+} from '@phosphor-icons/vue'
 
 const sectionRef = ref<HTMLElement | null>(null)
 const stepsRef = ref<HTMLDivElement | null>(null)

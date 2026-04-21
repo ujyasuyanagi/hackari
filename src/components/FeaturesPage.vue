@@ -2,14 +2,14 @@
 import { ref, onMounted } from 'vue'
 import { gsap } from 'gsap'
 import {
-  Plus,
-  Users,
-  BarChart3,
-  Monitor,
-  MessageSquare,
-  Award,
-  type LucideIcon,
-} from 'lucide-vue-next'
+  PhPlus as Plus,
+  PhUsers as Users,
+  PhChartBar as BarChart3,
+  PhMonitor as Monitor,
+  PhChatCircle as MessageSquare,
+  PhMedal as Award,
+  type PhosphorIcon,
+} from '@phosphor-icons/vue'
 import type { Feature } from '@/types'
 
 const sectionRef = ref<HTMLElement | null>(null)

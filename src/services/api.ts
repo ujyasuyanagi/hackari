@@ -1,8 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 interface ApiResponse<T> {
   data?: T
   error?: string
+  message?: string
 }
 
 interface LoginRequest {
@@ -21,9 +22,12 @@ interface RequestResetRequest {
 }
 
 interface ResetPasswordRequest {
-  email: string
-  code: string
+  token: string
   new_password: string
+}
+
+interface ResendVerificationRequest {
+  email: string
 }
 
 interface User {
@@ -116,13 +120,26 @@ async function fetchApi<T>(
       // Handle specific HTTP error codes with user-friendly messages
       const errorMessages: Record<number, string> = {
         401: 'неверный пароль',
+        403: errorData.message || 'доступ запрещён',
         404: 'пользователь не найден',
         409: 'пользователь уже существует',
         429: 'слишком много запросов, попробуйте позже',
         500: 'ошибка сервера, попробуйте позже',
       }
+
+      // Special handling for email not verified
+      if (response.status === 403 && (errorData.message?.toLowerCase().includes('email не подтверждён') || errorData.message?.toLowerCase().includes('не подтверждён'))) {
+        return { error: 'EMAIL_NOT_VERIFIED', message: errorData.message }
+      }
+
       const errorMessage = errorMessages[response.status] || errorData.message || 'произошла ошибка'
       return { error: errorMessage }
+    }
+
+    // Handle empty response (e.g., 204 No Content)
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      return { data: undefined }
     }
 
     const data = await response.json()
@@ -151,14 +168,14 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  verifyResetCode: (data: { email: string; code: string }) =>
-    fetchApi<{ message: string }>('/api/auth/password-reset/verify', {
+  resetPassword: (data: ResetPasswordRequest) =>
+    fetchApi<{ message: string }>('/api/auth/password-reset/reset', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  resetPassword: (data: ResetPasswordRequest) =>
-    fetchApi<{ message: string }>('/api/auth/password-reset/reset', {
+  resendVerification: (data: ResendVerificationRequest) =>
+    fetchApi<{ message: string }>('/api/auth/resend-verification', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -175,17 +192,65 @@ export const authApi = {
 }
 
 // Hackathon types
+export interface OrganizerInfo {
+  id: string
+  name: string
+  avatar_url?: string
+}
+
+export interface Track {
+  id: string
+  name: string
+  description?: string
+  prize_description?: string
+  max_teams?: number
+  team_count: number
+}
+
+export interface Deadline {
+  id: string
+  name: string
+  description?: string
+  deadline_at: string
+  is_milestone: boolean
+}
+
+export interface HackathonSkill {
+  id: string
+  name: string
+  category: string
+}
+
 export interface Hackathon {
   id: string
   title: string
   banner_url?: string
-  location_type: 'online' | 'offline'
+  location_type: 'online' | 'offline' | 'hybrid'
+  city?: string
+  venue?: string
   registration_start: string
   registration_end: string
   event_start: string
   event_end: string
+  max_participants?: number
   participant_count: number
   team_count: number
+  description?: string
+  organizer?: OrganizerInfo
+  is_published: boolean
+  tracks: Track[]
+  deadlines: Deadline[]
+  contact_email?: string
+  website_url?: string
+  social_links?: unknown
+  prize_pool?: string
+  prize_currency?: string
+  prize_description?: string
+  requirements?: string
+  team_size_min?: number
+  team_size_max?: number
+  age_restriction?: string
+  skills: HackathonSkill[]
 }
 
 export interface HackathonListResponse {
@@ -252,6 +317,12 @@ export interface UpdateSkillLevelRequest {
   level: number
 }
 
+export interface UserTeam {
+  id: string
+  name: string
+  role: string
+}
+
 export const userApi = {
   getMe: () =>
     fetchApi<UserProfile>('/api/users/me', {
@@ -262,6 +333,11 @@ export const userApi = {
     fetchApi<UserProfile>('/api/users/me', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+
+  getMyTeamForHackathon: (hackathonId: string) =>
+    fetchOptional<UserTeam>(`/api/users/me/teams?hackathon_id=${hackathonId}`, {
+      method: 'GET',
     }),
 
   getMySkills: () =>
@@ -320,10 +396,68 @@ export interface TeamCompetencyRating {
   rank: number
 }
 
+// Team Detail types
+export interface TeamMember {
+  id: string
+  user_id: string
+  name: string
+  avatar_url?: string
+  role: string
+  joined_at: string
+}
+
+export interface TeamDetail {
+  id: string
+  name: string
+  description?: string
+  hackathon_id: string
+  track?: {
+    id: string
+    name: string
+  }
+  repo_url?: string
+  demo_url?: string
+  presentation_url?: string
+  status: string
+  members: TeamMember[]
+  created_at: string
+}
+
+export interface UpdateTeamData {
+  name?: string
+  description?: string
+  track_id?: string
+  repo_url?: string
+  demo_url?: string
+  presentation_url?: string
+}
+
 export const teamApi = {
   getCompetencyRatings: () =>
     fetchApi<TeamCompetencyRating[]>('/api/teams/ratings/competencies', {
       method: 'GET',
+    }),
+
+  getById: (id: string) =>
+    fetchApi<TeamDetail>(`/api/teams/${id}`, {
+      method: 'GET',
+    }),
+
+  update: (id: string, data: UpdateTeamData) =>
+    fetchApi<TeamDetail>(`/api/teams/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  leave: (id: string) =>
+    fetchApi<{ success: boolean; new_leader?: string; team_disbanded?: boolean }>(`/api/teams/${id}/leave`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  delete: (id: string) =>
+    fetchApi<null>(`/api/teams/${id}`, {
+      method: 'DELETE',
     }),
 }
 
@@ -384,6 +518,7 @@ export interface CreateHackathonRequest {
   team_size_max?: number
   age_restriction?: string
   skills: string[] // UUIDs
+  new_organizer_id?: string
 }
 
 export interface CreateTrackRequest {
@@ -402,7 +537,7 @@ export interface CreateDeadlineRequest {
 
 export const organizerApi = {
   getMyOrganizer: () =>
-    fetchApi<Organizer>('/api/organizers/me', {
+    fetchOptional<Organizer>('/api/organizers/me', {
       method: 'GET',
     }),
 
@@ -425,4 +560,17 @@ export const organizerApi = {
     }),
 }
 
-export { fetchApi }
+// Helper to fetch optional resources - 404 returns undefined silently
+async function fetchOptional<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<{ data?: T; error?: string }> {
+  const result = await fetchApi<T>(endpoint, options)
+  // 404 is expected for optional resources - silently return undefined
+  if (result.error?.includes('не найден')) {
+    return { data: undefined }
+  }
+  return result
+}
+
+export { fetchApi, fetchOptional }

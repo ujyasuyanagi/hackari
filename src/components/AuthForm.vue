@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-
 import { gsap } from 'gsap'
 import BaseButton from './ui/BaseButton.vue'
 import BaseInput from './ui/BaseInput.vue'
 import { useAuth } from '@/composables/useAuth'
 import { authApi } from '@/services/api'
 
-const { login, register } = useAuth()
+const { login } = useAuth()
 
-type AuthMode = 'login' | 'register' | 'reset-email' | 'reset-code' | 'reset-password'
-type FieldName = 'name' | 'email' | 'password' | 'confirmPassword' | 'code' | 'newPassword'
+type AuthMode = 'login' | 'register' | 'reset-email' | 'verify-pending'
+type FieldName = 'name' | 'email' | 'password' | 'confirmPassword' | 'newPassword'
 
 const mode = ref<AuthMode>('login')
 const isLoading = ref(false)
@@ -23,7 +22,6 @@ const formData = ref({
   password: '',
   confirmPassword: '',
   name: '',
-  code: '',
   newPassword: '',
 })
 
@@ -55,12 +53,14 @@ const modeConfig = computed<ModeConfig>(() => {
         password: 'пароль',
         name: 'имя',
         confirmPassword: 'подтвердите пароль',
+        newPassword: 'новый пароль',
       },
       fieldPlaceholders: {
         email: 'name@example.com',
         password: '••••••••',
         name: 'ваше имя',
         confirmPassword: '••••••••',
+        newPassword: '••••••••',
       },
     },
     register: {
@@ -75,18 +75,20 @@ const modeConfig = computed<ModeConfig>(() => {
         password: 'пароль',
         name: 'имя',
         confirmPassword: 'подтвердите пароль',
+        newPassword: 'новый пароль',
       },
       fieldPlaceholders: {
         email: 'name@example.com',
         password: '••••••••',
         name: 'как вас зовут?',
         confirmPassword: 'повторите пароль',
+        newPassword: '••••••••',
       },
     },
     'reset-email': {
       title: 'сброс пароля',
-      subtitle: 'введите email',
-      submitText: 'отправить код',
+      subtitle: 'введите email для получения ссылки',
+      submitText: 'отправить ссылку',
       alternateText: 'вспомнили пароль?',
       alternateAction: 'войти',
       fields: ['email'],
@@ -95,7 +97,6 @@ const modeConfig = computed<ModeConfig>(() => {
         password: 'пароль',
         name: 'имя',
         confirmPassword: 'подтвердите пароль',
-        code: 'код',
         newPassword: 'новый пароль',
       },
       fieldPlaceholders: {
@@ -103,23 +104,21 @@ const modeConfig = computed<ModeConfig>(() => {
         password: '••••••••',
         name: 'ваше имя',
         confirmPassword: '••••••••',
-        code: '123456',
         newPassword: '••••••••',
       },
     },
-    'reset-code': {
-      title: 'введите код',
-      subtitle: 'проверьте почту',
-      submitText: 'проверить',
-      alternateText: 'не пришел код?',
-      alternateAction: 'отправить снова',
-      fields: ['code'],
+    'verify-pending': {
+      title: 'проверьте почту',
+      subtitle: 'Ссылка для подтверждения отправлена',
+      submitText: 'отправить снова',
+      alternateText: 'уже подтвердили?',
+      alternateAction: 'войти',
+      fields: ['email'] as FieldName[],
       fieldLabels: {
         email: 'email',
         password: 'пароль',
         name: 'имя',
         confirmPassword: 'подтвердите пароль',
-        code: 'код',
         newPassword: 'новый пароль',
       },
       fieldPlaceholders: {
@@ -127,32 +126,7 @@ const modeConfig = computed<ModeConfig>(() => {
         password: '••••••••',
         name: 'ваше имя',
         confirmPassword: '••••••••',
-        code: '123456',
         newPassword: '••••••••',
-      },
-    },
-    'reset-password': {
-      title: 'новый пароль',
-      subtitle: 'установите новый пароль',
-      submitText: 'сохранить',
-      alternateText: '',
-      alternateAction: '',
-      fields: ['newPassword', 'confirmPassword'],
-      fieldLabels: {
-        email: 'email',
-        password: 'пароль',
-        name: 'имя',
-        confirmPassword: 'подтвердите пароль',
-        code: 'код',
-        newPassword: 'новый пароль',
-      },
-      fieldPlaceholders: {
-        email: 'name@example.com',
-        password: '••••••••',
-        name: 'ваше имя',
-        confirmPassword: 'повторите пароль',
-        code: '123456',
-        newPassword: 'новый пароль',
       },
     },
   }
@@ -162,22 +136,9 @@ const modeConfig = computed<ModeConfig>(() => {
 const currentField = computed(() => modeConfig.value.fields[currentFieldIndex.value])
 
 const progressPercent = computed(() => {
-  // Unified progress for reset flow: email (1/4), code (2/4), newPassword (3/4), confirmPassword (4/4)
-  if (mode.value.startsWith('reset-')) {
-    if (mode.value === 'reset-email') {
-      return showSubmitButton.value ? 25 : Math.round((currentFieldIndex.value / 1) * 25)
-    } else if (mode.value === 'reset-code') {
-      return showSubmitButton.value ? 50 : 25 + Math.round((currentFieldIndex.value / 1) * 25)
-    } else if (mode.value === 'reset-password') {
-      const resetProgress = Math.round((currentFieldIndex.value / 2) * 50)
-      return showSubmitButton.value ? 100 : 50 + resetProgress
-    }
-  }
-
-  // Default behavior for login/register
   const total = modeConfig.value.fields.length
   const current = currentFieldIndex.value
-  if (showSubmitButton.value) return 100
+  if (showSubmitButton.value || mode.value === 'verify-pending') return 100
   return Math.round((current / total) * 100)
 })
 
@@ -207,7 +168,6 @@ const isCurrentFieldValid = computed(() => {
     case 'email':
       return value.includes('@') && value.includes('.')
     case 'password':
-      return value.length >= 8
     case 'newPassword':
       return value.length >= 8
     case 'confirmPassword':
@@ -215,8 +175,6 @@ const isCurrentFieldValid = computed(() => {
       return value === compareWith
     case 'name':
       return value.length >= 2
-    case 'code':
-      return value.length === 6
     default:
       return true
   }
@@ -236,7 +194,6 @@ const allFieldsFilled = computed(() => {
     if (field === 'password' || field === 'newPassword') return value.length >= 8
     if (field === 'confirmPassword') return value === (mode.value === 'reset-password' ? formData.value.newPassword : formData.value.password)
     if (field === 'name') return value.length >= 2
-    if (field === 'code') return value.length === 6
     return true
   })
 })
@@ -286,11 +243,11 @@ const goToNextField = () => {
   if (!validateCurrentField()) return
 
   if (isLastField.value) {
-    // Для режимов сброса пароля сразу отправляем форму, минуя экран проверки
-    if (mode.value.startsWith('reset-')) {
+    // For non-login/register modes, submit immediately
+    if (mode.value === 'reset-email' || mode.value === 'verify-pending') {
       handleSubmit()
     } else {
-      // Для login/register показываем экран проверки данных
+      // For login/register show submit button
       showSubmitButton.value = true
       nextTick(() => {
         animateSubmitButton()
@@ -343,13 +300,13 @@ const handleKeydown = (e: KeyboardEvent) => {
 }
 
 const handleSubmit = async () => {
-  if (!allFieldsFilled.value) return
+  if (!allFieldsFilled.value && mode.value !== 'verify-pending') return
 
   isLoading.value = true
   errors.value = {}
 
   try {
-    let result
+    let result: any
 
     if (mode.value === 'login') {
       result = await login(
@@ -357,68 +314,68 @@ const handleSubmit = async () => {
         formData.value.password
       )
     } else if (mode.value === 'register') {
-      result = await register(
-        formData.value.email,
-        formData.value.password,
-        formData.value.name
-      )
+      const regResult = await authApi.register({
+        email: formData.value.email,
+        password: formData.value.password,
+        name: formData.value.name
+      })
+      isLoading.value = false
+
+      if (regResult.error) {
+        errors.value.submit = regResult.error || 'Ошибка регистрации'
+        return
+      }
+
+      // Show verify pending screen
+      mode.value = 'verify-pending'
+      return
     } else if (mode.value === 'reset-email') {
-      // send reset code
+      // send reset link
       const resetResult = await authApi.requestReset({ email: formData.value.email })
       isLoading.value = false
 
       if (resetResult.error) {
-        errors.value.submit = resetResult.error || 'Не удалось отправить код'
+        errors.value.submit = resetResult.error || 'Не удалось отправить ссылку'
         return
       }
 
-      // Move to code verification step - MUST change mode BEFORE restore email to avoid watcher auto-reset
-        const savedEmail = formData.value.email
-        mode.value = 'reset-code'
-        formData.value.email = savedEmail
-      return
-    } else if (mode.value === 'reset-code') {
-      const verifyResult = await authApi.verifyResetCode({
-        email: formData.value.email,
-        code: formData.value.code
-      })
-      isLoading.value = false
-
-      if (verifyResult.error) {
-        errors.value.submit = verifyResult.error || 'Неверный код'
-        return
-      }
-
-        // Move to password reset step
-        mode.value = 'reset-password'
-        return
-    } else if (mode.value === 'reset-password') {
-      // reset password
-      const resetResult = await authApi.resetPassword({
-        email: formData.value.email,
-        code: formData.value.code,
-        new_password: formData.value.newPassword
-      })
-      isLoading.value = false
-
-      if (resetResult.error) {
-        errors.value.submit = resetResult.error || 'Не удалось сменить пароль'
-        return
-      }
-
+      // Show success - user needs to check email
       isSuccess.value = true
       setTimeout(() => {
         isSuccess.value = false
         resetForm()
         mode.value = 'login'
+      }, 3000)
+      return
+    } else if (mode.value === 'verify-pending') {
+      // Resend verification email
+      const resendResult = await authApi.resendVerification({ email: formData.value.email })
+      isLoading.value = false
+
+      if (resendResult.error) {
+        if (resendResult.error === 'EMAIL_NOT_VERIFIED') {
+          // Try again or show info
+        }
+        errors.value.submit = resendResult.error || 'Не удалось отправить'
+        return
+      }
+
+      errors.value.submit = 'Письмо отправлено повторно'
+      setTimeout(() => {
+        errors.value.submit = ''
       }, 2000)
       return
     }
 
     isLoading.value = false
 
-    if (!result.success) {
-      errors.value.submit = result.error || 'Произошла ошибка'
+    if (!result || !result.success) {
+      // Check for specific errors
+      if (result?.error === 'EMAIL_NOT_VERIFIED') {
+        mode.value = 'verify-pending'
+        return
+      }
+      errors.value.submit = result?.error || 'Произошла ошибка'
       return
     }
 
@@ -436,7 +393,7 @@ const handleSubmit = async () => {
 }
 
 const resetForm = () => {
-  formData.value = { email: '', password: '', confirmPassword: '', name: '', code: '', newPassword: '' }
+  formData.value = { email: '', password: '', confirmPassword: '', name: '', newPassword: '' }
   currentFieldIndex.value = 0
   showSubmitButton.value = false
   errors.value = {}
@@ -449,26 +406,16 @@ const switchMode = (newMode: AuthMode) => {
 }
 
 const handleAlternateAction = () => {
-  if (mode.value === 'reset-code' && modeConfig.value.alternateAction === 'отправить снова') {
-    // Resend code
-    formData.value.code = ''
-    resetForm()
-    mode.value = 'reset-email'
+  if (mode.value === 'verify-pending') {
+    handleSubmit()
   } else {
     switchMode(mode.value === 'login' ? 'register' : 'login')
   }
 }
 
-watch(() => mode.value, (newMode, oldMode) => {
-  // Don't reset form data when transitioning between reset flow steps
-  const resetModes = ['reset-email', 'reset-code', 'reset-password']
-  if (resetModes.includes(newMode) && resetModes.includes(oldMode as string)) {
-    // Only reset UI state, preserve form data (email, code)
-    currentFieldIndex.value = 0
-    showSubmitButton.value = false
-    errors.value = {}
-    isSuccess.value = false
-  } else {
+// Only reset form when changing between login/register, not for verify-pending
+watch(() => mode.value, (newMode) => {
+  if (newMode !== 'verify-pending') {
     resetForm()
   }
 })
@@ -477,7 +424,7 @@ watch(() => mode.value, (newMode, oldMode) => {
 <template>
   <div class="auth-form">
     <!-- Progress Bar -->
-    <div v-show="!isSuccess" class="progress-container">
+    <div v-show="!isSuccess && mode !== 'verify-pending'" class="progress-container">
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: `${progressPercent}%` }" />
       </div>
@@ -495,136 +442,169 @@ watch(() => mode.value, (newMode, oldMode) => {
 
     <!-- Form / Success State wrapper with transition -->
     <transition name="fade" mode="out-in">
-      <div v-if="isSuccess" key="success" class="success-state">
+      <!-- Verify Pending State -->
+      <div v-if="mode === 'verify-pending'" key="verify" class="verify-pending-state">
+        <div class="verify-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <path d="M2 5l10 8 10-8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="verify-text">На {{ formData.email }} отправлена ссылка для подтверждения</p>
+        <p class="verify-subtext">Нажмите на ссылку в письме, чтобы активировать аккаунт</p>
+
+        <div class="verify-actions">
+          <BaseButton
+            type="button"
+            variant="primary"
+            size="md"
+            :loading="isLoading"
+            @click="handleAlternateAction"
+          >
+            отправить снова
+          </BaseButton>
+          <BaseButton
+            type="button"
+            variant="secondary"
+            size="md"
+            @click="switchMode('login')"
+          >
+            перейти ко входу
+          </BaseButton>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div v-else-if="isSuccess" key="success" class="success-state">
         <div class="success-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         <p class="success-text">
-          <span v-if="mode === 'reset-email'">код отправлен</span>
+          <span v-if="mode === 'reset-email'">ссылка отправлена</span>
           <span v-else-if="mode === 'register'">аккаунт создан</span>
-          <span v-else-if="mode === 'reset-password'">пароль изменён</span>
           <span v-else>вход выполнен</span>
         </p>
       </div>
 
+      <!-- Form -->
       <div v-else key="form" class="form-body">
-      <!-- Current Field -->
-      <div v-if="!showSubmitButton" class="current-field-wrapper">
-        <div class="field-step">
-          <span class="step-number">{{ currentFieldIndex + 1 }} / {{ modeConfig.fields.length }}</span>
-        </div>
+        <!-- Current Field -->
+        <div v-if="!showSubmitButton" class="current-field-wrapper">
+          <div class="field-step">
+            <span class="step-number">{{ currentFieldIndex + 1 }} / {{ modeConfig.fields.length }}</span>
+          </div>
 
-        <BaseInput
-          ref="fieldRefs"
-          :key="currentField"
-          v-model="currentValue"
-          :type="currentField === 'password' || currentField === 'confirmPassword' || currentField === 'newPassword' ? 'password' : currentField === 'email' ? 'email' : 'text'"
-          :label="modeConfig.fieldLabels[currentField]"
-          :placeholder="modeConfig.fieldPlaceholders[currentField]"
-          :error="currentError"
-          required
-          @keydown="handleKeydown"
-        />
+          <BaseInput
+            ref="fieldRefs"
+            :key="currentField"
+            v-model="currentValue"
+            :type="currentField === 'password' || currentField === 'confirmPassword' || currentField === 'newPassword' ? 'password' : currentField === 'email' ? 'email' : 'text'"
+            :label="modeConfig.fieldLabels[currentField]"
+            :placeholder="modeConfig.fieldPlaceholders[currentField]"
+            :error="currentError"
+            required
+            @keydown="handleKeydown"
+          />
 
-        <div class="field-actions">
-          <BaseButton
-            v-if="currentFieldIndex > 0"
-            type="button"
-            variant="secondary"
-            size="md"
-            @click="goToPrevField"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            назад
-          </BaseButton>
+          <div class="field-actions">
+            <BaseButton
+              v-if="currentFieldIndex > 0"
+              type="button"
+              variant="secondary"
+              size="md"
+              @click="goToPrevField"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              назад
+            </BaseButton>
 
-          <BaseButton
-            type="button"
-            variant="primary"
-            size="md"
-            :disabled="!canContinue"
-            class="continue-btn"
-            @click="goToNextField"
-          >
-            {{ isLastField ? 'завершить' : 'продолжить' }}
-            <svg v-if="!isLastField" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </BaseButton>
-        </div>
-      </div>
-
-      <!-- Submit Section -->
-      <div v-else class="submit-section">
-        <div class="summary-title">проверьте данные</div>
-
-        <div class="summary-list">
-          <div
-            v-for="field in modeConfig.fields"
-            :key="field"
-            class="summary-item"
-          >
-            <span class="summary-label">{{ modeConfig.fieldLabels[field] }}</span>
-            <span class="summary-value">
-              {{ field === 'password' || field === 'confirmPassword' || field === 'newPassword' ? '••••••••' : formData[field] }}
-            </span>
+            <BaseButton
+              type="button"
+              variant="primary"
+              size="md"
+              :disabled="!canContinue"
+              class="continue-btn"
+              @click="goToNextField"
+            >
+              {{ isLastField ? 'завершить' : 'продолжить' }}
+              <svg v-if="!isLastField" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </BaseButton>
           </div>
         </div>
 
-        <div class="submit-actions">
-          <BaseButton
-            type="button"
-            variant="secondary"
-            size="md"
-            @click="goToPrevField"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            назад
-          </BaseButton>
+        <!-- Submit Section -->
+        <div v-else class="submit-section">
+          <div class="summary-title">проверьте данные</div>
 
-          <BaseButton
+          <div class="summary-list">
+            <div
+              v-for="field in modeConfig.fields"
+              :key="field"
+              class="summary-item"
+            >
+              <span class="summary-label">{{ modeConfig.fieldLabels[field] }}</span>
+              <span class="summary-value">
+                {{ field === 'password' || field === 'confirmPassword' ? '••••••••' : formData[field] }}
+              </span>
+            </div>
+          </div>
+
+          <div class="submit-actions">
+            <BaseButton
+              type="button"
+              variant="secondary"
+              size="md"
+              @click="goToPrevField"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              назад
+            </BaseButton>
+
+            <BaseButton
+              type="button"
+              variant="primary"
+              size="md"
+              :loading="isLoading"
+              @click="handleSubmit"
+            >
+              {{ modeConfig.submitText }}
+            </BaseButton>
+          </div>
+        </div>
+
+        <!-- Mode Switch -->
+        <div class="form-footer">
+          <span class="footer-text">{{ modeConfig.alternateText }}</span>
+          <button
             type="button"
-            variant="primary"
-            size="md"
-            :loading="isLoading"
-            @click="handleSubmit"
+            class="link-button"
+            @click="handleAlternateAction"
           >
-            {{ modeConfig.submitText }}
-          </BaseButton>
+            {{ modeConfig.alternateAction }}
+          </button>
+        </div>
+
+        <!-- Forgot Password -->
+        <div v-if="mode === 'login'" class="form-links">
+          <button
+            type="button"
+            class="link-button small"
+            @click="switchMode('reset-email')"
+          >
+            забыли пароль?
+          </button>
         </div>
       </div>
-
-      <!-- Mode Switch -->
-      <div class="form-footer">
-        <span class="footer-text">{{ modeConfig.alternateText }}</span>
-        <button
-          type="button"
-          class="link-button"
-          @click="handleAlternateAction"
-        >
-          {{ modeConfig.alternateAction }}
-        </button>
-      </div>
-
-      <!-- Forgot Password -->
-      <div v-if="mode === 'login'" class="form-links">
-        <button
-          type="button"
-          class="link-button small"
-          @click="switchMode('reset-email')"
-        >
-          забыли пароль?
-        </button>
-      </div>
-    </div>
-  </transition>
-</div>
+    </transition>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -779,6 +759,55 @@ watch(() => mode.value, (newMode, oldMode) => {
     min-width: 120px;
     white-space: nowrap;
   }
+}
+
+// Verify Pending State
+.verify-pending-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.verify-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba($color-accent, 0.1);
+  border: 1px solid rgba($color-accent, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-accent;
+  animation: scaleIn 0.4s ease;
+
+  svg {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.verify-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: $color-text;
+}
+
+.verify-subtext {
+  font-size: 14px;
+  color: $color-text-dim;
+  max-width: 300px;
+}
+
+.verify-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 280px;
 }
 
 // Footer
@@ -1003,6 +1032,10 @@ watch(() => mode.value, (newMode, oldMode) => {
   .form-footer {
     flex-wrap: wrap;
     text-align: center;
+  }
+
+  .verify-actions {
+    max-width: 100%;
   }
 }
 </style>

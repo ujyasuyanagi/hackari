@@ -3,10 +3,14 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import Lenis from 'lenis'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import OrganizersPage from '@/components/OrganizersPage.vue'
+import HackathonDetail from '@/components/HackathonDetail.vue'
 import FooterPage from '@/components/FooterPage.vue'
 
 gsap.registerPlugin(ScrollTrigger)
+
+const props = defineProps<{
+  id: string
+}>()
 
 const lenis = ref<Lenis | null>(null)
 
@@ -34,18 +38,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="organizers-view">
+  <div class="hackathon-detail-view">
     <main>
-      <OrganizersPage />
+      <HackathonDetail :hackathonId="id" />
     </main>
     <FooterPage />
   </div>
 </template>
 
 <style scoped lang="scss">
-.organizers-view {
+.hackathon-detail-view {
   position: relative;
-  background-color: $color-bg;
+  background-color: var(--color-bg, #0a0a0a);
   min-height: 100vh;
 }
 
@@ -53,4 +57,3 @@ main {
   padding-top: 0;
 }
 </style>
-

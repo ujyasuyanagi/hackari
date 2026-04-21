@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Menu, X, LogOut, User as UserIcon } from 'lucide-vue-next'
+import { PhList, PhX, PhSignOut as LogOut, PhUser as UserIcon, PhUsers as PhUser } from '@phosphor-icons/vue'
 import { useAuth } from '@/composables/useAuth'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -93,7 +93,7 @@ const scrollToSection = (href: string) => {
       <div class="header-actions">
         <template v-if="isAuthenticated && user">
           <router-link :to="profileNavItem.href" class="user-info">
-            <UserIcon :size="16" class="user-icon" />
+            <PhUser :size="16" class="user-icon" />
             <span class="user-name">{{ user.name || user.email }}</span>
           </router-link>
           <button class="logout-btn" @click="logout">
@@ -110,7 +110,7 @@ const scrollToSection = (href: string) => {
           class="mobile-toggle"
           @click="isMobileMenuOpen = !isMobileMenuOpen"
         >
-          <component :is="isMobileMenuOpen ? X : Menu" :size="24" />
+          <component :is="isMobileMenuOpen ? PhX : PhList" :size="24" />
         </button>
       </div>
     </div>

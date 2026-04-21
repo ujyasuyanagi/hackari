@@ -2,16 +2,17 @@
 import { ref, onMounted } from 'vue'
 import { gsap } from 'gsap'
 import {
-  ArrowUpRight,
-  Github,
-  Twitter,
-  MessageCircle,
-  Terminal,
-} from 'lucide-vue-next'
+  PhArrowUpRight as ArrowUpRight,
+  PhGithubLogo as Github,
+  PhXLogo as Twitter,
+  PhDiscordLogo as MessageCircle,
+  PhTerminal as Terminal,
+} from '@phosphor-icons/vue'
 
 const sectionRef = ref<HTMLElement | null>(null)
 const contentRef = ref<HTMLDivElement | null>(null)
 const showEasterEgg = ref(false)
+const currentYear = new Date().getFullYear()
 
 const ecosystemProducts = [
   { name: 'XaneoConnect', description: 'Интеграции и API', href: '#' },
@@ -169,7 +170,7 @@ onMounted(() => {
       <div class="footer-bottom animate-in">
         <div class="bottom-left">
           <p class="copyright text-dim">
-            © 2024 hackari. Все права защищены.
+            © {{ currentYear }} hackari. Все права защищены.
           </p>
         </div>
 

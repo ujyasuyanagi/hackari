@@ -564,8 +564,16 @@ import { useRouter } from 'vue-router'
 import gsap from 'gsap'
 import { organizerApi, userApi } from '@/services/api'
 import type { AvailableSkill, CreateHackathonRequest, CreateTrackRequest, CreateDeadlineRequest } from '@/services/api'
+import { useAuth } from '@/composables/useAuth'
+import { useModal } from '@/composables/useModal'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const router = useRouter()
+const { user } = useAuth()
+const { alert } = useModal()
+
+// Store organizer ID for hackathon creation
+const organizerId = ref<string>('')
 
 const wizardCard = ref<HTMLElement | null>(null)
 const stepContent = ref<HTMLElement | null>(null)
@@ -588,7 +596,6 @@ const steps = [
 const form = reactive<CreateHackathonRequest>({
   title: '',
   description: '',
-  banner_url: '',
   location_type: '',
   city: '',
   venue: '',
@@ -611,6 +618,26 @@ const form = reactive<CreateHackathonRequest>({
   tracks: [],
   deadlines: [],
 })
+
+// Select options
+const locationTypeOptions = [
+  { value: 'online', label: 'Онлайн' },
+  { value: 'offline', label: 'Офлайн' },
+  { value: 'hybrid', label: 'Гибрид' },
+]
+
+const currencyOptions = [
+  { value: 'RUB', label: 'RUB — Российский рубль' },
+  { value: 'USD', label: 'USD — Доллар США' },
+  { value: 'EUR', label: 'EUR — Евро' },
+]
+
+const ageRestrictionOptions = [
+  { value: '14+', label: '14+' },
+  { value: '16+', label: '16+' },
+  { value: '18+', label: '18+' },
+  { value: '', label: 'Без ограничений' },
+]
 
 const errors = reactive<Record<string, string>>({})
 
@@ -694,11 +721,11 @@ const validateCurrentStep = () => {
 const isStepValid = computed(() => {
   if (currentStep.value === 0) {
     return form.title && form.description && form.location_type &&
-           form.registration_start && form.registration_end &&
-           form.event_start && form.event_end &&
-           !errors.title && !errors.description && !errors.location_type &&
-           !errors.registration_start && !errors.registration_end &&
-           !errors.event_start && !errors.event_end
+      form.registration_start && form.registration_end &&
+      form.event_start && form.event_end &&
+      !errors.title && !errors.description && !errors.location_type &&
+      !errors.registration_start && !errors.registration_end &&
+      !errors.event_start && !errors.event_end
   }
   if (currentStep.value === 1) {
     return form.contact_email && !errors.contact_email
@@ -715,9 +742,9 @@ const isStepValid = computed(() => {
 
 const isFormValid = computed(() => {
   return form.title && form.description && form.location_type &&
-         form.registration_start && form.registration_end &&
-         form.event_start && form.event_end && form.contact_email &&
-         form.tracks.length > 0 && form.tracks.every(t => t.name.trim())
+    form.registration_start && form.registration_end &&
+    form.event_start && form.event_end && form.contact_email &&
+    form.tracks.length > 0 && form.tracks.every(t => t.name.trim())
 })
 
 const nextStep = () => {
@@ -784,20 +811,76 @@ const handleSubmit = async () => {
   isSubmitting.value = true
 
   try {
+    // Convert numeric strings to numbers and dates to ISO format
+    const toISOString = (dateStr: string) => dateStr ? new Date(dateStr).toISOString() : ''
+
+    // Filter out empty optional fields
+    const cleanDeadlines = form.deadlines
+      .filter(d => d.name && d.deadline_at)
+      .map(d => ({
+        name: d.name,
+        description: d.description || undefined,
+        deadline_at: toISOString(d.deadline_at),
+        is_milestone: d.is_milestone,
+      }))
+
     const data: CreateHackathonRequest = {
       ...form,
+      new_organizer_id: organizerId.value,
+      registration_start: toISOString(form.registration_start),
+      // ... rest of the fields
+      registration_end: toISOString(form.registration_end),
+      event_start: toISOString(form.event_start),
+      event_end: toISOString(form.event_end),
+      max_participants: form.max_participants ? Number(form.max_participants) : undefined,
+      team_size_min: form.team_size_min ? Number(form.team_size_min) : undefined,
+      team_size_max: form.team_size_max ? Number(form.team_size_max) : undefined,
+      tracks: form.tracks
+        .filter(t => t.name.trim())
+        .map(t => ({
+          name: t.name,
+          description: t.description || undefined,
+          prize_description: t.prize_description || undefined,
+          max_teams: t.max_teams ? Number(t.max_teams) : undefined,
+        })),
+      deadlines: cleanDeadlines,
       social_links: socialLinks,
+      banner_url: form.banner_url || undefined,
+      city: form.location_type !== 'online' ? form.city || undefined : undefined,
+      venue: form.location_type !== 'online' ? form.venue || undefined : undefined,
+      website_url: form.website_url || undefined,
+      requirements: form.requirements || undefined,
+      age_restriction: form.age_restriction || undefined,
+      prize_pool: form.prize_pool || undefined,
+      prize_currency: form.prize_currency || undefined,
+      prize_description: form.prize_description || undefined,
     }
+
+    console.log('Sending data:', JSON.stringify(data, null, 2))
 
     const response = await organizerApi.createHackathon(data)
 
     if (response.data) {
-      router.push('/organizers/dashboard')
-    } else {
-      alert(response.error || 'Произошла ошибка при создании хакатона')
-    }
-  } catch (error) {
-    alert('Произошла ошибка при создании хакатона')
+      // Redirect to the newly created hackathon detail page
+        const hackathonId = (response.data as any).id
+        if (hackathonId) {
+          router.push(`/hackathons/${hackathonId}`)
+        } else {
+          router.push('/organizers/dashboard')
+        }
+} else {
+        await alert({
+          title: 'Ошибка',
+          message: response.error || 'Неизвестная ошибка',
+          type: 'error'
+        })
+      }
+    } catch (error: any) {
+      await alert({
+        title: 'Ошибка',
+        message: error?.message || 'Произошла ошибка при создании хакатона',
+        type: 'error'
+      })
   } finally {
     isSubmitting.value = false
   }
@@ -824,12 +907,22 @@ onMounted(async () => {
     { y: 0, opacity: 1, duration: 0.5, delay: 0.3, ease: 'power2.out' }
   )
 
-  // Load available skills
+  // Load organizer profile and available skills
   isLoadingSkills.value = true
-  const response = await userApi.getAvailableSkills()
-  if (response.data) {
-    availableSkills.value = response.data
+
+  const [skillsResponse, organizerResponse] = await Promise.all([
+    userApi.getAvailableSkills(),
+    organizerApi.getMyOrganizer()
+  ])
+
+  if (skillsResponse.data) {
+    availableSkills.value = skillsResponse.data
   }
+
+  if (organizerResponse.data) {
+    organizerId.value = organizerResponse.data.id
+  }
+
   isLoadingSkills.value = false
 
   // Add initial track
@@ -844,7 +937,7 @@ onMounted(async () => {
 
 .wizard-page {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: $color-bg;
   padding: 6rem 1rem 2rem;
 }
 
@@ -854,11 +947,10 @@ onMounted(async () => {
 }
 
 .wizard-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 2rem;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   padding: 2.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .wizard-header {
@@ -867,18 +959,18 @@ onMounted(async () => {
 
   .page-title {
     font-size: clamp(1.75rem, 4vw, 2.25rem);
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 0.75rem;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: $color-text;
+    font-family: $font-display;
+    letter-spacing: -0.02em;
   }
 
   .page-subtitle {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-size: 1rem;
     margin-bottom: 2rem;
+    font-family: $font-body;
   }
 }
 
@@ -886,9 +978,16 @@ onMounted(async () => {
 .stepper {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   gap: 0;
-  flex-wrap: wrap;
+  max-width: 600px;
+  margin: 0 auto;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+
+  @media (max-width: 640px) {
+    gap: 0.5rem;
+  }
 }
 
 .step {
@@ -896,6 +995,26 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   position: relative;
+  flex: 1;
+  min-width: 80px;
+  max-width: 140px;
+
+  @media (max-width: 640px) {
+    min-width: 60px;
+  }
+
+  &:not(:last-child) {
+    &::after {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: calc(50% + 24px);
+      width: calc(100% - 48px);
+      height: 2px;
+      background: $color-border;
+      transition: background 0.3s $transition-smooth;
+    }
+  }
 
   .step-number {
     width: 40px;
@@ -905,57 +1024,75 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 1rem;
-    background: var(--bg-color);
-    border: 2px solid var(--border-color);
-    color: var(--text-secondary);
-    transition: all 0.3s ease;
+    font-size: 0.875rem;
+    background: $color-bg;
+    border: 2px solid $color-border;
+    color: $color-text-dim;
+    transition: all 0.3s $transition-smooth;
+    font-family: $font-display;
+    flex-shrink: 0;
 
     svg {
       stroke: currentColor;
+      width: 18px;
+      height: 18px;
+    }
+
+    @media (max-width: 640px) {
+      width: 32px;
+      height: 32px;
+      font-size: 0.75rem;
     }
   }
 
   .step-label {
     margin-top: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    font-size: 0.75rem;
+    color: $color-text-dim;
     font-weight: 500;
-    white-space: nowrap;
-  }
+    text-align: center;
+    font-family: $font-body;
+    line-height: 1.3;
+    padding: 0 0.25rem;
 
-  .step-connector {
-    position: absolute;
-    top: 20px;
-    right: -60px;
-    width: 60px;
-    height: 2px;
-    background: var(--border-color);
+    @media (max-width: 640px) {
+      font-size: 0.65rem;
+      max-width: 60px;
+      white-space: normal;
+    }
   }
 
   &.active {
     .step-number {
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border-color: transparent;
-      color: white;
+      background: $color-accent;
+      border-color: $color-accent;
+      color: $color-bg;
     }
 
     .step-label {
-      color: var(--accent-primary);
+      color: $color-accent;
     }
   }
 
   &.completed {
     .step-number {
-      background: #22c55e;
-      border-color: #22c55e;
-      color: white;
+      background: $color-accent;
+      border-color: $color-accent;
+      color: $color-bg;
     }
 
-    .step-connector {
-      background: linear-gradient(90deg, #22c55e, var(--border-color));
+    .step-label {
+      color: $color-text;
+    }
+
+    &:not(:last-child)::after {
+      background: $color-accent;
     }
   }
+}
+
+.step-connector {
+  display: none;
 }
 
 // Form Sections
@@ -964,7 +1101,7 @@ onMounted(async () => {
 }
 
 .form-step {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s $transition-smooth;
 }
 
 @keyframes fadeIn {
@@ -984,17 +1121,19 @@ onMounted(async () => {
   .section-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: $color-text;
     margin-bottom: 1.25rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid $color-border;
+    font-family: $font-display;
   }
 
   .section-description {
-    color: var(--text-secondary);
+    color: $color-text-dim;
     font-size: 0.9rem;
     margin-bottom: 1rem;
     margin-top: -0.75rem;
+    font-family: $font-body;
   }
 }
 
@@ -1020,7 +1159,7 @@ onMounted(async () => {
 
   &.has-error {
     .field-input, .field-select, .field-textarea {
-      border-color: var(--accent-red);
+      border-color: $color-secondary;
     }
   }
 
@@ -1034,10 +1173,11 @@ onMounted(async () => {
 .field-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: $color-text-dim;
+  font-family: $font-body;
 
   .required {
-    color: var(--accent-red);
+    color: $color-secondary;
   }
 }
 
@@ -1045,21 +1185,22 @@ onMounted(async () => {
 .field-select,
 .field-textarea {
   padding: 0.875rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
-  background: var(--bg-color);
-  color: var(--text-color);
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  background: $color-bg;
+  color: $color-text;
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  font-family: $font-body;
 
   &:focus {
     outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(var(--accent-primary-rgb), 0.1);
+    border-color: $color-accent;
+    box-shadow: 0 0 0 3px rgba($color-accent, 0.1);
   }
 
   &::placeholder {
-    color: var(--text-tertiary);
+    color: $color-text-muted;
   }
 
   &:disabled {
@@ -1085,7 +1226,8 @@ onMounted(async () => {
 
 .error-text {
   font-size: 0.8rem;
-  color: var(--accent-red);
+  color: $color-secondary;
+  font-family: $font-body;
 }
 
 // Skills
@@ -1094,13 +1236,14 @@ onMounted(async () => {
   align-items: center;
   gap: 1rem;
   padding: 2rem;
-  color: var(--text-secondary);
+  color: $color-text-dim;
+  font-family: $font-body;
 
   .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--border-color);
-    border-top-color: var(--accent-primary);
+    border: 2px solid $color-border;
+    border-top-color: $color-accent;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -1120,19 +1263,19 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   padding: 0.75rem;
-  background: var(--bg-color);
-  border: 2px solid var(--border-color);
-  border-radius: 0.75rem;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: var(--accent-primary);
+    border-color: $color-accent;
   }
 
   &.selected {
-    border-color: var(--accent-primary);
-    background: rgba(var(--accent-primary-rgb), 0.05);
+    border-color: $color-accent;
+    background: rgba($color-accent, 0.05);
   }
 
   .skill-input {
@@ -1142,24 +1285,27 @@ onMounted(async () => {
   .skill-name {
     font-size: 0.9rem;
     font-weight: 500;
-    color: var(--text-color);
+    color: $color-text;
+    font-family: $font-body;
   }
 
   .skill-category {
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: $color-text-dim;
     margin-top: 0.25rem;
+    font-family: $font-body;
   }
 }
 
 .selected-count {
   margin-top: 1rem;
   padding: 0.75rem;
-  background: rgba(var(--accent-primary-rgb), 0.05);
-  border-radius: 0.5rem;
+  background: rgba($color-accent, 0.05);
+  border-radius: 4px;
   font-size: 0.9rem;
-  color: var(--accent-primary);
+  color: $color-accent;
   font-weight: 500;
+  font-family: $font-body;
 }
 
 // Tracks & Deadlines
@@ -1173,9 +1319,9 @@ onMounted(async () => {
 .track-card,
 .deadline-card {
   padding: 1.5rem;
-  background: rgba(var(--accent-primary-rgb), 0.05);
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
+  background: rgba($color-accent, 0.02);
+  border: 1px solid $color-border;
+  border-radius: 8px;
 }
 
 .track-header,
@@ -1189,7 +1335,8 @@ onMounted(async () => {
   .deadline-number {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: $color-text;
+    font-family: $font-display;
   }
 }
 
@@ -1200,14 +1347,14 @@ onMounted(async () => {
   padding: 0.5rem;
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: $color-text-dim;
   cursor: pointer;
-  border-radius: 0.5rem;
+  border-radius: 4px;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(var(--accent-red), 0.1);
-    color: var(--accent-red);
+    background: rgba($color-secondary, 0.1);
+    color: $color-secondary;
   }
 }
 
@@ -1238,19 +1385,20 @@ onMounted(async () => {
 .checkbox-custom {
   width: 20px;
   height: 20px;
-  border: 2px solid var(--border-color);
-  border-radius: 0.375rem;
+  border: 2px solid $color-border;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  position: relative;
 
   &::after {
     content: '';
     width: 10px;
     height: 10px;
-    background: white;
+    background: $color-bg;
     border-radius: 2px;
     opacity: 0;
     transform: scale(0);
@@ -1258,8 +1406,8 @@ onMounted(async () => {
   }
 
   .checkbox-input:checked + & {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
+    background: $color-accent;
+    border-color: $color-accent;
 
     &::after {
       opacity: 1;
@@ -1270,7 +1418,8 @@ onMounted(async () => {
 
 .checkbox-label {
   font-size: 0.9rem;
-  color: var(--text-color);
+  color: $color-text;
+  font-family: $font-body;
 }
 
 // Actions
@@ -1280,7 +1429,7 @@ onMounted(async () => {
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid $color-border;
 
   @media (max-width: 480px) {
     flex-direction: column;
@@ -1293,25 +1442,47 @@ onMounted(async () => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  border-radius: 0.75rem;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s $transition-smooth;
   cursor: pointer;
-  border: none;
+  border: 1px solid $color-border;
+  text-transform: lowercase;
+  font-family: $font-body;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
 
   svg {
     stroke: currentColor;
   }
 
   &.btn-primary {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: white;
+    color: $color-accent;
+    border-color: $color-accent;
     min-width: 140px;
 
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-accent;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
+
     &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      color: $color-bg;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
 
     &:disabled {
@@ -1321,25 +1492,58 @@ onMounted(async () => {
   }
 
   &.btn-secondary {
-    background: transparent;
-    color: var(--text-color);
-    border: 2px solid var(--border-color);
+    color: $color-text;
+    border-color: $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: $color-surface;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-text;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 
   &.btn-outline {
-    background: transparent;
-    color: var(--text-color);
-    border: 2px dashed var(--border-color);
+    color: $color-text;
+    border: 1px dashed $color-border;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba($color-accent, 0.02);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s $transition-smooth;
+      z-index: -1;
+    }
 
     &:hover {
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
+      border-color: $color-accent;
+      color: $color-accent;
       border-style: solid;
+
+      &::before {
+        transform: scaleX(1);
+      }
     }
   }
 }
@@ -1347,8 +1551,8 @@ onMounted(async () => {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid rgba($color-accent, 0.3);
+  border-top-color: $color-accent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

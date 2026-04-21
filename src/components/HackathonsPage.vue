@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Calendar, MapPin, Users, ArrowRight, Globe, Building2, Trophy } from 'lucide-vue-next'
+import { PhCalendar as Calendar, PhMapPin as MapPin, PhUsers as Users, PhArrowRight as ArrowRight, PhGlobe as Globe, PhBuildings as Buildings, PhTrophy as Trophy } from '@phosphor-icons/vue'
 import { hackathonApi, type Hackathon } from '@/services/api'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -155,7 +155,7 @@ const formatDateRange = (start: string, end: string) => {
 }
 
 const getLocationIcon = (type: string) => {
-  return type === 'online' ? Globe : Building2
+  return type === 'online' ? Globe : Buildings
 }
 
 const getLocationLabel = (type: string) => {
@@ -482,6 +482,7 @@ const getLocationLabel = (type: string) => {
   display: inline-block;
   transform-origin: center bottom;
   transform-style: preserve-3d;
+  opacity: 0;
 
   &-accent {
     color: $color-accent;
