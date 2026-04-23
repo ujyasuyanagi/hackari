@@ -14,7 +14,14 @@ gsap.registerPlugin(ScrollTrigger)
 
 const lenis = ref<Lenis | null>(null)
 
+const handleLenisRaf = (time: number) => {
+  lenis.value?.raf(time * 1000)
+}
+
 onMounted(() => {
+  // Reset scroll position
+  window.scrollTo(0, 0)
+
   // Initialize Lenis smooth scroll
   lenis.value = new Lenis({
     duration: 1.2,
@@ -27,18 +34,15 @@ onMounted(() => {
   // Connect Lenis to GSAP ScrollTrigger
   lenis.value.on('scroll', ScrollTrigger.update)
 
-  gsap.ticker.add((time) => {
-    lenis.value?.raf(time * 1000)
-  })
+  gsap.ticker.add(handleLenisRaf)
 
   gsap.ticker.lagSmoothing(0)
 })
 
 onUnmounted(() => {
+  gsap.ticker.remove(handleLenisRaf)
   lenis.value?.destroy()
-  gsap.ticker.remove((time) => {
-    lenis.value?.raf(time * 1000)
-  })
+  lenis.value = null
 })
 </script>
 

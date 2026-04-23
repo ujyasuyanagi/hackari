@@ -147,17 +147,44 @@
                 </div>
               </div>
               <div class="hackathon-actions">
-                <router-link
-                  :to="`/hackathons/${hackathon.id}`"
-                  class="btn btn-icon"
-                  title="Посмотреть"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </router-link>
-              </div>
+            <router-link
+              :to="`/hackathons/${hackathon.id}`"
+              class="btn btn-icon"
+              title="Посмотреть"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </router-link>
+            <router-link
+              :to="`/hackathons/${hackathon.id}/criteria`"
+              class="btn btn-icon"
+              title="Настроить критерии оценивания"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="4" y1="21" x2="4" y2="14"/>
+                <line x1="4" y1="10" x2="4" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12" y2="3"/>
+                <line x1="20" y1="21" x2="20" y2="16"/>
+                <line x1="20" y1="12" x2="20" y2="3"/>
+                <line x1="1" y1="14" x2="7" y2="14"/>
+                <line x1="9" y1="8" x2="15" y2="8"/>
+                <line x1="17" y1="16" x2="23" y2="16"/>
+              </svg>
+            </router-link>
+            <router-link
+              v-if="isHackathonEnded(hackathon)"
+              :to="`/hackathons/${hackathon.id}/ratings`"
+              class="btn btn-icon rate"
+              title="Оценить решения"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </router-link>
+          </div>
             </div>
           </div>
         </div>
@@ -169,25 +196,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import gsap from 'gsap'
-import { organizerApi, hackathonApi } from '@/services/api'
-import { useAuth } from '@/composables/useAuth'
-
-const { user } = useAuth()
+import { organizerApi, type OrganizerHackathonSummary } from '@/services/api'
 
 const header = ref<HTMLElement | null>(null)
 const stats = ref<HTMLElement | null>(null)
 const content = ref<HTMLElement | null>(null)
 
-const hackathons = ref<{
-  id: string
-  title: string
-  banner_url?: string
-  is_published: boolean
-  event_start: string
-  event_end: string
-  participant_count: number
-  team_count: number
-}[]>([])
+const hackathons = ref<OrganizerHackathonSummary[]>([])
 const isLoading = ref(true)
 
 const upcomingCount = computed(() => {
@@ -202,6 +217,10 @@ const totalParticipants = computed(() => {
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
+const isHackathonEnded = (hackathon: OrganizerHackathonSummary) => {
+  return new Date(hackathon.event_end) < new Date()
 }
 
 onMounted(async () => {
@@ -222,13 +241,18 @@ onMounted(async () => {
 
   // Load organizer's hackathons
   isLoading.value = true
-  const response = await hackathonApi.list()
-  if (response.data) {
-    // Filter only hackathons from this organizer
-    // For now, show all hackathons
-    hackathons.value = response.data.hackathons
+  try {
+    const organizerResponse = await organizerApi.getMyOrganizer()
+    if (!organizerResponse.data) {
+      hackathons.value = []
+      return
+    }
+
+    const response = await organizerApi.getHackathons(organizerResponse.data.id)
+    hackathons.value = response.data ?? []
+  } finally {
+    isLoading.value = false
   }
-  isLoading.value = false
 })
 </script>
 
@@ -627,5 +651,16 @@ onMounted(async () => {
 .hackathon-actions {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
+
+  .btn-icon.rate {
+    color: $color-accent;
+    border-color: $color-accent;
+
+    &:hover {
+      background: $color-accent;
+      color: $color-bg;
+    }
+  }
 }
 </style>

@@ -11,11 +11,12 @@ gsap.registerPlugin(ScrollTrigger)
 
 const route = useRoute()
 
-// No header on auth pages
+// No header on auth pages and 404 page
 const showAnyHeader = computed(() => {
   return !route.path.startsWith('/auth') &&
-  route.path !== '/login' &&
-  route.path !== '/register'
+    route.path !== '/login' &&
+    route.path !== '/register' &&
+    route.name !== 'not-found'
 })
 
 const isOrganizerRoute = computed(() => {

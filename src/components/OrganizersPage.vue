@@ -4,7 +4,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useRouter } from 'vue-router'
 import { PhUsers as Users, PhMegaphone as Megaphone, PhNetwork as Network, PhLightbulb as Lightbulb, PhArrowRight as ArrowRight, PhCheckCircle as CheckCircle, PhBriefcase as Briefcase } from '@phosphor-icons/vue'
-import { organizerApi } from '@/services/api'
+import { organizerApi, userApi } from '@/services/api'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -66,6 +66,12 @@ const navigateToTerms = async () => {
     // User has organizer profile, go directly to dashboard
     router.push('/organizers/dashboard')
   } else {
+    const profileResponse = await userApi.getMe()
+    if (profileResponse.data?.organizerTermsAcceptedAt) {
+      router.push('/organizers/profile')
+      return
+    }
+
     // User doesn't have organizer profile, show terms
     router.push('/organizers/rules')
   }

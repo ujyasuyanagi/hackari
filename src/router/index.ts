@@ -12,6 +12,10 @@ import HackathonCreateView from '@/views/HackathonCreateView.vue'
 import OrganizerTermsAcceptance from '@/components/OrganizerTermsAcceptance.vue'
 import ResetPasswordView from '@/views/ResetPasswordView.vue'
 import EmailVerificationView from '@/views/EmailVerificationView.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
+
+import HackathonCriteriaPage from '@/components/HackathonCriteriaPage.vue'
+import HackathonRatingsPage from '@/components/HackathonRatingsPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -73,6 +77,18 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/hackathons/:id/criteria',
+      name: 'hackathon-criteria',
+      component: HackathonCriteriaPage,
+      props: true,
+    },
+    {
+      path: '/hackathons/:id/ratings',
+      name: 'hackathon-ratings',
+      component: HackathonRatingsPage,
+      props: true,
+    },
+    {
       path: '/login',
       redirect: '/auth',
     },
@@ -90,10 +106,20 @@ const router = createRouter({
       name: 'verify-email',
       component: EmailVerificationView,
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+    },
   ],
   scrollBehavior() {
-    return { top: 0 }
+    return { top: 0, left: 0, behavior: 'auto' }
   },
+})
+
+// Global hook to reset scroll on route change
+router.afterEach(() => {
+  window.scrollTo(0, 0)
 })
 
 export default router

@@ -14,23 +14,32 @@ import {
   Crown,
 } from 'lucide-vue-next'
 import FooterPage from '@/components/FooterPage.vue'
-import { teamApi } from '@/services/api'
-import type { TeamCompetencyRating } from '@/services/api'
+import { teamApi, ratingApi, type TeamCompetencyRating, type PublicRatingsResponse } from '@/services/api'
 
 gsap.registerPlugin(ScrollTrigger)
 
 const lenis = ref<Lenis | null>(null)
 
+const handleLenisRaf = (time: number) => {
+  lenis.value?.raf(time * 1000)
+}
+
 const ratings = ref<TeamCompetencyRating[]>([])
 const isLoading = ref(true)
+const isLeaderboardLoading = ref(false)
 const error = ref<string | null>(null)
 const selectedHackathon = ref<string | null>(null)
+const selectedCategory = ref<string | null>(null)
+const categories = ref<string[]>([])
+const ratingMode = ref<'competency' | 'organizer'>('competency')
+const organizerRatings = ref<PublicRatingsResponse | null>(null)
 
 // Template refs
 const heroSection = ref<HTMLElement | null>(null)
 const titleWrapper = ref<HTMLElement | null>(null)
 const bentoGrid = ref<HTMLDivElement | null>(null)
 const geometricShape = ref<HTMLElement | null>(null)
+const leaderboardSection = ref<HTMLElement | null>(null)
 
 // Computed
 const uniqueHackathons = computed(() => {
@@ -40,8 +49,11 @@ const uniqueHackathons = computed(() => {
 })
 
 const filteredRatings = computed(() => {
-  if (!selectedHackathon.value) return ratings.value
-  return ratings.value.filter(r => r.hackathon_id === selectedHackathon.value)
+  let result = ratings.value
+  if (selectedHackathon.value) {
+    result = result.filter(r => r.hackathon_id === selectedHackathon.value)
+  }
+  return result
 })
 
 const topThree = computed(() => filteredRatings.value.slice(0, 3))
@@ -59,25 +71,36 @@ onMounted(async () => {
 
   lenis.value.on('scroll', ScrollTrigger.update)
 
-  gsap.ticker.add((time) => {
-    lenis.value?.raf(time * 1000)
-  })
+  gsap.ticker.add(handleLenisRaf)
 
   gsap.ticker.lagSmoothing(0)
 
-  await loadRatings()
+  await Promise.all([loadRatings(), loadCategories()])
   animateHero()
 })
 
 onUnmounted(() => {
+  gsap.ticker.remove(handleLenisRaf)
   lenis.value?.destroy()
+  lenis.value = null
 })
+
+const loadCategories = async () => {
+  try {
+    const response = await teamApi.getRatingCategories()
+    if (response.data) {
+      categories.value = response.data
+    }
+  } catch {
+    console.error('Failed to load categories')
+  }
+}
 
 const loadRatings = async () => {
   try {
-    isLoading.value = true
+    isLeaderboardLoading.value = true
     error.value = null
-    const response = await teamApi.getCompetencyRatings()
+    const response = await teamApi.getCompetencyRatings(selectedCategory.value || undefined)
     if (response.error) {
       error.value = response.error
     } else if (response.data) {
@@ -87,7 +110,42 @@ const loadRatings = async () => {
     error.value = 'Не удалось загрузить рейтинг'
   } finally {
     isLoading.value = false
+    isLeaderboardLoading.value = false
   }
+}
+
+const setRatingMode = async (mode: 'competency' | 'organizer') => {
+  ratingMode.value = mode
+  if (mode === 'organizer') {
+    isLeaderboardLoading.value = true
+    // Load organizer ratings for selected hackathon
+    if (selectedHackathon.value) {
+      const res = await ratingApi.getPublicRatings(selectedHackathon.value)
+      if (res.data) {
+        organizerRatings.value = res.data
+      }
+    }
+    isLeaderboardLoading.value = false
+  }
+}
+
+const selectCategory = async (category: string | null) => {
+  selectedCategory.value = category
+  await loadRatings()
+}
+
+// Format category name for display
+const formatCategoryName = (category: string): string => {
+  const names: Record<string, string> = {
+    'frontend': 'Frontend',
+    'backend': 'Backend',
+    'ml': 'ML / AI',
+    'devops': 'DevOps',
+    'mobile': 'Mobile',
+    'design': 'Design',
+    'ai-tools': 'AI Tools',
+  }
+  return names[category] || category.charAt(0).toUpperCase() + category.slice(1)
 }
 
 const animateHero = () => {
@@ -168,21 +226,39 @@ const animateHero = () => {
     )
   }
 
-  // Animate cards
-  const cards = bentoGrid.value?.querySelectorAll('.bento-card')
-  cards?.forEach((card, index) => {
-    gsap.fromTo(card,
-      { scale: 0.9, opacity: 0, y: 40 },
-      {
-        scale: 1,
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        ease: 'power3.out',
-        delay: 1.6 + (index % 4) * 0.1,
-      }
-    )
-  })
+  // Setup leaderboard reveal on scroll
+  if (leaderboardSection.value) {
+    gsap.set(leaderboardSection.value, { opacity: 0, y: 60 })
+
+    ScrollTrigger.create({
+      trigger: heroSection.value,
+      start: 'bottom 80%',
+      onEnter: () => {
+        gsap.to(leaderboardSection.value, {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: 'power3.out',
+        })
+
+        // Animate rows with stagger
+        const rows = leaderboardSection.value?.querySelectorAll('.toplist-row')
+        rows?.forEach((row, index) => {
+          gsap.fromTo(row,
+            { opacity: 0, x: -30 },
+            {
+              opacity: 1,
+              x: 0,
+              duration: 0.5,
+              ease: 'power3.out',
+              delay: 0.2 + index * 0.08,
+            }
+          )
+        })
+      },
+      once: true,
+    })
+  }
 }
 
 const getRankIcon = (rank: number) => {
@@ -202,7 +278,7 @@ const getRankColor = (rank: number) => {
 <template>
   <div class="ratings-view">
     <main class="main-content">
-      <!-- Loading State -->
+      <!-- Loading State (initial load only) -->
       <div v-if="isLoading" class="loading-state">
         <div class="loading-spinner" />
         <span class="mono">загрузка рейтинга...</span>
@@ -262,177 +338,144 @@ const getRankColor = (rank: number) => {
               <span class="mono text-dim">// рейтинг команд по компетенциям</span>
             </p>
 
-            <!-- Hackathon Filter -->
-            <div v-if="uniqueHackathons.length > 1" class="filter-section">
-              <span class="filter-label mono">хакатон:</span>
-              <div class="filter-buttons">
-                <button
-                  class="filter-btn"
-                  :class="{ active: selectedHackathon === null }"
-                  @click="selectedHackathon = null"
-                >
-                  <span>все</span>
-                </button>
-                <button
-                  v-for="h in uniqueHackathons"
-                  :key="h.id"
-                  class="filter-btn"
-                  :class="{ active: selectedHackathon === h.id }"
-                  @click="selectedHackathon = h.id"
-                >
-                  <span>{{ h.name }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+      <!-- Rating Mode Switch -->
+      <div class="filter-section mode-switch">
+        <span class="filter-label mono">режим:</span>
+        <div class="filter-buttons">
+          <button
+            class="filter-btn"
+            :class="{ active: ratingMode === 'competency' }"
+            @click="setRatingMode('competency')"
+          >
+            <span>по навыкам</span>
+          </button>
+          <button
+            class="filter-btn"
+            :class="{ active: ratingMode === 'organizer' }"
+            @click="setRatingMode('organizer')"
+          >
+            <span>по оценкам оргов</span>
+          </button>
+        </div>
+      </div>
 
-        <!-- Leaderboard Section -->
-        <section class="leaderboard-section">
-          <div class="container">
-            <!-- Top 3 Podium -->
-            <div v-if="topThree.length > 0" class="podium-section">
-              <div class="podium-grid">
-                <article
-                  v-for="team in topThree"
-                  :key="team.team_id"
-                  class="podium-card"
-                  :class="`rank-${team.rank}`"
-                >
-                  <div class="card-content">
-                    <div class="rank-badge" :class="getRankColor(team.rank)">
-                      <component :is="getRankIcon(team.rank)" :size="20" />
-                      <span class="rank-number">{{ team.rank }}</span>
-                    </div>
+      <!-- Category Filter -->
+      <div v-if="categories.length > 0" class="filter-section">
+        <span class="filter-label mono">компетенция:</span>
+        <div class="filter-buttons">
+          <button
+            class="filter-btn"
+            :class="{ active: selectedCategory === null }"
+            @click="selectCategory(null)"
+          >
+            <span>все</span>
+          </button>
+          <button
+            v-for="cat in categories"
+            :key="cat"
+            class="filter-btn"
+            :class="{ active: selectedCategory === cat }"
+            @click="selectCategory(cat)"
+          >
+            <span>{{ formatCategoryName(cat) }}</span>
+          </button>
+        </div>
+      </div>
 
-                    <div class="team-header">
-                      <h3 class="team-name">{{ team.team_name }}</h3>
-                      <p class="hackathon-name">{{ team.hackathon_name }}</p>
-                    </div>
+      <!-- Hackathon Filter -->
+      <div v-if="uniqueHackathons.length > 1" class="filter-section">
+        <span class="filter-label mono">хакатон:</span>
+        <div class="filter-buttons">
+          <button
+            class="filter-btn"
+            :class="{ active: selectedHackathon === null }"
+            @click="selectedHackathon = null"
+          >
+            <span>все</span>
+          </button>
+          <button
+            v-for="h in uniqueHackathons"
+            :key="h.id"
+            class="filter-btn"
+            :class="{ active: selectedHackathon === h.id }"
+            @click="selectedHackathon = h.id"
+          >
+            <span>{{ h.name }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-                    <div class="stats-row">
-                      <div class="stat">
-                        <Users :size="16" class="stat-icon" />
-                        <span class="stat-value">{{ team.member_count }}</span>
-                        <span class="stat-label">участников</span>
-                      </div>
-                      <div class="stat">
-                        <Code2 :size="16" class="stat-icon" />
-                        <span class="stat-value">{{ team.skills_count }}</span>
-                        <span class="stat-label">навыков</span>
-                      </div>
-                      <div class="stat">
-                        <Target :size="16" class="stat-icon" />
-                        <span class="stat-value">{{ team.avg_skill_level.toFixed(1) }}</span>
-                        <span class="stat-label">средний уровень</span>
-                      </div>
-                    </div>
+  <!-- Leaderboard Section -->
+  <section ref="leaderboardSection" class="leaderboard-section">
+    <div class="container">
+      <!-- Leaderboard Loading State -->
+      <div v-if="isLeaderboardLoading" class="leaderboard-loading">
+        <div class="loading-spinner" />
+        <span class="mono">загрузка...</span>
+      </div>
 
-                    <!-- Top Skills -->
-                    <div v-if="team.top_skills.length > 0" class="top-skills">
-                      <span class="skills-label mono">топ навыков:</span>
-                      <div class="skills-tags">
-                        <span
-                          v-for="skill in team.top_skills.slice(0, 3)"
-                          :key="skill.name"
-                          class="skill-tag"
-                        >
-                          {{ skill.name }}
-                          <span class="skill-level">{{ skill.level }}</span>
-                        </span>
-                      </div>
-                    </div>
+      <!-- Vertical Top List -->
+      <div v-else-if="filteredRatings.length > 0" class="toplist-section">
+        <div class="toplist-header">
+          <span class="header-rank">#</span>
+          <span class="header-team">Команда</span>
+          <span class="header-stats">Участники / Навыки / Уровень</span>
+          <span class="header-score">Очки</span>
+        </div>
 
-                    <!-- Category Breakdown -->
-                    <div v-if="team.categories.length > 0" class="category-chart">
-                      <div
-                        v-for="cat in team.categories.slice(0, 3)"
-                        :key="cat.name"
-                        class="category-bar"
-                      >
-                        <div class="category-info">
-                          <span class="category-name">{{ cat.name }}</span>
-                          <span class="category-count">{{ cat.count }} навыков</span>
-                        </div>
-                        <div class="category-progress">
-                          <div
-                            class="category-fill"
-                            :style="{ width: `${cat.percentage}%` }"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="card-highlight" />
-                  <div class="card-border" />
-                </article>
+        <div class="toplist-body">
+          <article
+            v-for="team in filteredRatings"
+            :key="team.team_id"
+            class="toplist-row"
+            :class="`rank-${team.rank}`"
+          >
+            <div class="row-rank">
+              <div class="rank-indicator" :class="getRankColor(team.rank)">
+                <component :is="getRankIcon(team.rank)" :size="16" v-if="team.rank <= 3" />
+                <span v-else class="rank-number">{{ team.rank }}</span>
               </div>
             </div>
 
-            <!-- Rest of Teams List -->
-            <div v-if="restTeams.length > 0" class="list-section">
-              <h2 class="section-title">
-                <span class="mono">// позиции 4-{{ filteredRatings.length }}</span>
-              </h2>
+            <div class="row-team">
+              <h3 class="team-name">{{ team.team_name }}</h3>
+              <p class="hackathon-name">{{ team.hackathon_name }}</p>
+            </div>
 
-              <div ref="bentoGrid" class="bento-grid">
-                <article
-                  v-for="team in restTeams"
-                  :key="team.team_id"
-                  class="bento-card"
-                >
-                  <div class="card-content list-card">
-                    <div class="list-rank">{{ team.rank }}</div>
-
-                    <div class="list-info">
-                      <h3 class="team-name">{{ team.team_name }}</h3>
-                      <p class="team-hackathon">{{ team.hackathon_name }}</p>
-
-                      <div class="list-stats">
-                        <span class="stat-pill">
-                          <Users :size="12" />
-                          {{ team.member_count }}
-                        </span>
-                        <span class="stat-pill">
-                          <Code2 :size="12" />
-                          {{ team.skills_count }}
-                        </span>
-                        <span class="stat-pill">
-                          <Target :size="12" />
-                          {{ team.avg_skill_level.toFixed(1) }}
-                        </span>
-                      </div>
-
-                      <div v-if="team.top_skills.length > 0" class="list-skills">
-                        <span
-                          v-for="skill in team.top_skills.slice(0, 4)"
-                          :key="skill.name"
-                          class="list-skill-tag"
-                        >
-                          {{ skill.name }}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div class="list-score">
-                      <span class="score-value">{{ team.total_skill_score }}</span>
-                      <span class="score-label mono">очков</span>
-                    </div>
-                  </div>
-                  <div class="card-highlight" />
-                  <div class="card-border" />
-                </article>
+            <div class="row-stats">
+              <div class="stat-item">
+                <Users :size="14" />
+                <span>{{ team.member_count }}</span>
+              </div>
+              <div class="stat-item">
+                <Code2 :size="14" />
+                <span>{{ team.skills_count }}</span>
+              </div>
+              <div class="stat-item">
+                <Target :size="14" />
+                <span>{{ team.avg_skill_level.toFixed(1) }}</span>
               </div>
             </div>
 
-            <!-- Empty State -->
-            <div v-else-if="filteredRatings.length === 0" class="empty-state">
-              <Trophy :size="64" class="empty-icon" />
-              <p class="empty-text">Пока нет данных для отображения</p>
-              <p class="empty-subtitle text-muted">Создайте команды и добавьте навыки участникам</p>
+            <div class="row-score">
+              <span class="score-value">{{ team.total_skill_score }}</span>
             </div>
-          </div>
-        </section>
+
+            <div v-if="team.rank <= 3" class="top-row-highlight" />
+          </article>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else class="empty-state">
+        <Trophy :size="64" class="empty-icon" />
+        <p class="empty-text">Пока нет данных для отображения</p>
+        <p class="empty-subtitle text-muted">Создайте команды и добавьте навыки участникам</p>
+      </div>
+    </div>
+  </section>
       </template>
 
       <FooterPage />
@@ -742,65 +785,218 @@ const getRankColor = (rank: number) => {
   }
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.leaderboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 40px;
+  color: $color-text-dim;
 
-// Podium Section
-.podium-section {
-  margin-bottom: 64px;
-}
-
-.podium-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid rgba($color-accent, 0.2);
+    border-top-color: $color-accent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 }
 
-.podium-card {
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+// Toplist Section (Vertical)
+.toplist-section {
+  background: rgba($color-surface, 0.3);
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.toplist-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 200px 100px;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba($color-surface, 0.5);
+  border-bottom: 1px solid $color-border;
+  font-size: 12px;
+  font-weight: 600;
+  color: $color-text-dim;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 50px 1fr 80px;
+    padding: 12px 16px;
+  }
+
+  .header-rank {
+    text-align: center;
+  }
+
+  .header-stats {
+    @media (max-width: 768px) {
+      display: none;
+    }
+  }
+}
+
+.toplist-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.toplist-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 200px 100px;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba($color-border, 0.5);
   position: relative;
-  transform-style: preserve-3d;
-  perspective: 800px;
+  transition: background 0.2s ease;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 50px 1fr 80px;
+    padding: 16px;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba($color-accent, 0.03);
+  }
 
   &.rank-1 {
-    @media (min-width: 901px) {
-      transform: translateY(-20px);
-    }
+    background: linear-gradient(90deg, rgba(#ffd700, 0.08), transparent);
 
-    .rank-badge {
+    .rank-indicator {
       background: linear-gradient(135deg, #ffd700, #ffb347);
       color: #0a0a0a;
     }
   }
 
   &.rank-2 {
-    .rank-badge {
+    background: linear-gradient(90deg, rgba(#c0c0c0, 0.08), transparent);
+
+    .rank-indicator {
       background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
       color: #0a0a0a;
     }
   }
 
   &.rank-3 {
-    .rank-badge {
+    background: linear-gradient(90deg, rgba(#cd7f32, 0.08), transparent);
+
+    .rank-indicator {
       background: linear-gradient(135deg, #cd7f32, #daa520);
       color: #0a0a0a;
     }
   }
+}
 
-  &:hover {
-    .card-highlight {
-      opacity: 1;
-    }
+.row-rank {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-    .card-border {
-      border-color: rgba($color-accent, 0.3);
+.rank-indicator {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+
+  &.default {
+    background: rgba($color-accent, 0.1);
+    color: $color-text-dim;
+  }
+
+  .rank-number {
+    font-family: $font-display;
+  }
+}
+
+.row-team {
+  min-width: 0;
+
+  .team-name {
+    font-family: $font-display;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hackathon-name {
+    font-size: 12px;
+    color: $color-text-muted;
+  }
+}
+
+.row-stats {
+  display: flex;
+  gap: 20px;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: $color-text-dim;
+
+    svg {
+      color: $color-text-muted;
     }
   }
+}
+
+.row-score {
+  text-align: right;
+
+  .score-value {
+    font-family: $font-display;
+    font-size: 22px;
+    font-weight: 700;
+    color: $color-accent;
+  }
+}
+
+.top-row-highlight {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.rank-1 .top-row-highlight {
+  background: linear-gradient(180deg, #ffd700, #ffb347);
+}
+
+.rank-2 .top-row-highlight {
+  background: linear-gradient(180deg, #c0c0c0, #e8e8e8);
+}
+
+.rank-3 .top-row-highlight {
+  background: linear-gradient(180deg, #cd7f32, #daa520);
 }
 
 .card-content {
@@ -978,135 +1174,6 @@ const getRankColor = (rank: number) => {
     background: linear-gradient(90deg, $color-accent, lighten($color-accent, 20%));
     border-radius: 2px;
     transition: width 0.8s ease;
-  }
-}
-
-// List Section
-.list-section {
-  margin-top: 40px;
-}
-
-.section-title {
-  font-family: $font-display;
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid $color-border;
-}
-
-// Bento Grid for List
-.bento-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.bento-card {
-  position: relative;
-  transform-style: preserve-3d;
-  perspective: 800px;
-
-  &:hover {
-    .card-highlight {
-      opacity: 1;
-    }
-
-    .card-border {
-      border-color: rgba($color-accent, 0.3);
-    }
-  }
-}
-
-.list-card {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 24px;
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-}
-
-.list-rank {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba($color-accent, 0.1);
-  border: 1px solid rgba($color-accent, 0.2);
-  border-radius: 10px;
-  font-family: $font-display;
-  font-size: 16px;
-  font-weight: 600;
-  color: $color-accent;
-  flex-shrink: 0;
-}
-
-.list-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.list-stats {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-.stat-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: rgba($color-text, 0.05);
-  border-radius: 12px;
-  font-size: 12px;
-  color: $color-text-dim;
-}
-
-.list-skills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.list-skill-tag {
-  padding: 4px 10px;
-  background: rgba($color-accent, 0.08);
-  border: 1px solid rgba($color-accent, 0.15);
-  border-radius: 12px;
-  font-size: 11px;
-  color: $color-text-dim;
-}
-
-.list-score {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  flex-shrink: 0;
-
-  @media (max-width: 640px) {
-    align-items: flex-start;
-  }
-
-  .score-value {
-    font-family: $font-display;
-    font-size: 28px;
-    font-weight: 700;
-    color: $color-accent;
-  }
-
-  .score-label {
-    font-size: 11px;
-    color: $color-text-muted;
   }
 }
 

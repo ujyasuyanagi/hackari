@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const API_BASE_URL = ((import.meta as unknown) as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || ''
 
 interface ApiResponse<T> {
   data?: T
@@ -287,6 +287,7 @@ export interface UserProfile {
   githubUrl?: string
   telegramUsername?: string
   isVerified: boolean
+  organizerTermsAcceptedAt?: string | null
   createdAt: string
   skills: Skill[]
 }
@@ -327,6 +328,11 @@ export const userApi = {
   getMe: () =>
     fetchApi<UserProfile>('/api/users/me', {
       method: 'GET',
+    }),
+
+  acceptOrganizerTerms: () =>
+    fetchApi<UserProfile>('/api/users/me/organizer-terms/accept', {
+      method: 'POST',
     }),
 
   updateMe: (data: UpdateProfileRequest) =>
@@ -433,8 +439,12 @@ export interface UpdateTeamData {
 }
 
 export const teamApi = {
-  getCompetencyRatings: () =>
-    fetchApi<TeamCompetencyRating[]>('/api/teams/ratings/competencies', {
+  getCompetencyRatings: (category?: string) =>
+    fetchApi<TeamCompetencyRating[]>(`/api/teams/ratings/competencies${category ? `?category=${encodeURIComponent(category)}` : ''}`, {
+      method: 'GET',
+    }),
+  getRatingCategories: () =>
+    fetchApi<string[]>('/api/teams/ratings/categories', {
       method: 'GET',
     }),
 
@@ -474,6 +484,18 @@ export interface Organizer {
   social_links?: unknown
   is_verified: boolean
   created_at: string
+}
+
+export interface OrganizerHackathonSummary {
+  id: string
+  title: string
+  banner_url?: string
+  event_start: string
+  event_end: string
+  location_type: string
+  is_published: boolean
+  participant_count: number
+  team_count: number
 }
 
 export interface CreateOrganizerRequest {
@@ -541,6 +563,11 @@ export const organizerApi = {
       method: 'GET',
     }),
 
+  getHackathons: (id: string) =>
+    fetchApi<OrganizerHackathonSummary[]>(`/api/organizers/${id}/hackathons`, {
+      method: 'GET',
+    }),
+
   createOrganizer: (data: CreateOrganizerRequest) =>
     fetchApi<Organizer>('/api/organizers/me', {
       method: 'POST',
@@ -571,6 +598,164 @@ async function fetchOptional<T>(
     return { data: undefined }
   }
   return result
+}
+
+// Rating Criteria types
+export interface RatingCriteria {
+  id: string
+  hackathon_id: string
+  name: string
+  description?: string
+  weight: number
+  max_score: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCriteriaRequest {
+  name: string
+  description?: string
+  weight: number
+  max_score: number
+}
+
+export interface UpdateCriteriaRequest {
+  name?: string
+  description?: string
+  weight?: number
+}
+
+export interface ReorderCriteriaRequest {
+  criteria_ids: string[]
+}
+
+// Rating Score types
+export interface ScoreInput {
+  criteria_id: string
+  score: number
+}
+
+export interface ScoreDetail extends ScoreInput {
+  criteria_name: string
+  max_score: number
+  weight: number
+  weighted_score: number
+}
+
+export interface Rating {
+  id: string
+  submission_id: string
+  organizer_id: string
+  organizer_name: string
+  total_score: number
+  feedback?: string
+  is_final: boolean
+  scores: ScoreDetail[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateRatingRequest {
+  submission_id: string
+  scores: ScoreInput[]
+  feedback?: string
+  is_final: boolean
+}
+
+export interface UpdateRatingRequest {
+  scores: ScoreInput[]
+  feedback?: string
+  is_final?: boolean
+}
+
+export interface TeamBrief {
+  id: string
+  name: string
+}
+
+export interface SubmissionWithRating {
+  id: string
+  title: string
+  description?: string
+  repo_url?: string
+  demo_url?: string
+  status: string
+  submitted_at?: string
+  team: TeamBrief
+  rating?: Rating
+}
+
+export interface SubmissionsWithRatingsResponse {
+  submissions: SubmissionWithRating[]
+}
+
+export interface PublicRatingEntry {
+  rank: number
+  team_id: string
+  team_name: string
+  submission_id: string
+  submission_title: string
+  total_score: number
+  is_final: boolean
+  feedback?: string
+}
+
+export interface PublicRatingsResponse {
+  hackathon_id: string
+  hackathon_title: string
+  ratings: PublicRatingEntry[]
+}
+
+export const ratingApi = {
+  // Criteria
+  getCriteria: (hackathonId: string) =>
+    fetchApi<RatingCriteria[]>(`/api/hackathons/${hackathonId}/criteria`, {
+      method: 'GET',
+    }),
+  createCriteria: (hackathonId: string, data: CreateCriteriaRequest) =>
+    fetchApi<RatingCriteria>(`/api/hackathons/${hackathonId}/criteria`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateCriteria: (hackathonId: string, criteriaId: string, data: UpdateCriteriaRequest) =>
+    fetchApi<RatingCriteria>(`/api/hackathons/${hackathonId}/criteria/${criteriaId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteCriteria: (hackathonId: string, criteriaId: string) =>
+    fetchApi<null>(`/api/hackathons/${hackathonId}/criteria/${criteriaId}`, {
+      method: 'DELETE',
+    }),
+  reorderCriteria: (hackathonId: string, data: ReorderCriteriaRequest) =>
+    fetchApi<null>(`/api/hackathons/${hackathonId}/criteria/reorder`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Ratings
+  getSubmissionsWithRatings: (hackathonId: string) =>
+    fetchApi<SubmissionsWithRatingsResponse>(`/api/hackathons/${hackathonId}/submissions/with-ratings`, {
+      method: 'GET',
+    }),
+  createRating: (hackathonId: string, data: CreateRatingRequest) =>
+    fetchApi<Rating>(`/api/hackathons/${hackathonId}/ratings`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateRating: (hackathonId: string, ratingId: string, data: UpdateRatingRequest) =>
+    fetchApi<Rating>(`/api/hackathons/${hackathonId}/ratings/${ratingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteRating: (hackathonId: string, ratingId: string) =>
+    fetchApi<null>(`/api/hackathons/${hackathonId}/ratings/${ratingId}`, {
+      method: 'DELETE',
+    }),
+  getPublicRatings: (hackathonId: string) =>
+    fetchApi<PublicRatingsResponse>(`/api/hackathons/${hackathonId}/ratings/public`, {
+      method: 'GET',
+    }),
 }
 
 export { fetchApi, fetchOptional }
