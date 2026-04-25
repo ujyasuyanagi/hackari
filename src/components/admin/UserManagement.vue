@@ -64,7 +64,7 @@ const loadUsers = async () => {
     return
   }
 
-  users.value = response.data ?? []
+  users.value = response.data?.users ?? []
 }
 
 const toggleStaff = async (account: AdminUser) => {

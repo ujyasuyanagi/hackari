@@ -923,7 +923,7 @@ export const adminApi = {
 
   // User management (superuser only)
   listUsers: () =>
-    fetchApi<AdminUser[]>(`/api/admin/${ADMIN_SECRET}/users`, {
+    fetchApi<{ users: AdminUser[]; total: number }>(`/api/admin/${ADMIN_SECRET}/users`, {
       method: 'GET',
     }),
   toggleUserStaff: (id: string) =>
